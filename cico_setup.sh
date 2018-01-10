@@ -1,7 +1,6 @@
 #!/bin/bash
 
 REGISTRY="push.registry.devshift.net"
-TAG=$(echo $GIT_COMMIT | cut -c1-${DEVSHIFT_TAG_LEN})
 
 function tag_push() {
   TARGET=$1
@@ -46,5 +45,7 @@ yum -y install \
    curl
 
 load_jenkins_vars
+
+TAG=$(echo $GIT_COMMIT | cut -c1-${DEVSHIFT_TAG_LEN})
 
 service docker start
