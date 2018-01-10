@@ -58,8 +58,10 @@ objects:
           ports:
           - containerPort: 8080
             protocol: TCP
+            name: http
           - containerPort: 8082
             protocol: TCP
+            name: health
           volumeMounts:
             - name: traefik-config-dir
               mountPath: /etc/traefik
@@ -93,7 +95,8 @@ objects:
     ports:
       - protocol: TCP
         port: 80
-        targetPort: 4242
+        targetPort: 8080
+        name: http
     selector:
       deploymentconfig: f8osoproxy
 parameters:
