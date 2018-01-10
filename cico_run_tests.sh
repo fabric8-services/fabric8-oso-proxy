@@ -3,7 +3,7 @@
 . cico_setup.sh
 
 BUILDER="f8osoproxy-builder"
-PACKAGE_NAME="github.com/fabric8-services/fabric8-oso-proxy"
+PACKAGE_NAME="github.com/containous/traefik"
 
 GOPATH_IN_CONTAINER=/tmp/go
 PACKAGE_PATH=$GOPATH_IN_CONTAINER/src/$PACKAGE_NAME
