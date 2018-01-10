@@ -33,14 +33,14 @@ objects:
           app: f8osoproxy
           deploymentconfig: f8osoproxy
       spec:
-        containers:
         volumes:
         - name: traefik-config-dir
-          config:
+          configMap:
             name: f8osoproxy
             items:
               - key: traefik.toml
                 path: traefik.toml
+        containers:
         - env:
           - name: WIT_URL
             valueFrom:
