@@ -34,23 +34,40 @@ objects:
           deploymentconfig: f8osoproxy
       spec:
         containers:
+        volumes:
+        - name: traefik-config-dir
+          config:
+            name: f8osoproxy
+            items:
+              - key: traefik.toml
+                path: traefik.toml
         - env:
-          - name: DATABASE_URL
+          - name: WIT_URL
             valueFrom:
-              secretKeyRef:
+              configMapKeyRef:
                 name: f8osoproxy
-                key: database.url
+                key: wit.url
+          - name: AUTH_URL
+            valueFrom:
+              configMapKeyRef:
+                name: f8osoproxy
+                key: auth.url
           image: registry.devshift.net/fabric8-services/fabric8-oso-proxy:${IMAGE_TAG}
-          imagePullPolicy: Always
           name: f8osoproxy
+          imagePullPolicy: Always
           ports:
-          - containerPort: 4242
+          - containerPort: 8080
             protocol: TCP
+          - containerPort: 8082
+            protocol: TCP
+          volumeMounts:
+            - name: traefik-config-dir
+              mountPath: /etc/traefik
           livenessProbe:
             failureThreshold: 3
             httpGet:
               path: /health
-              port: 4242
+              port: 8082
               scheme: HTTP
             initialDelaySeconds: 1
             periodSeconds: 10
@@ -59,8 +76,8 @@ objects:
           readinessProbe:
             failureThreshold: 3
             httpGet:
-              path: /health
-              port: 4242
+              path: /ping
+              port: 8082
               scheme: HTTP
             initialDelaySeconds: 1
             periodSeconds: 10
