@@ -2,6 +2,8 @@
 
 . cico_setup.sh
 
+./cico_run_tests.sh
+
 docker build -t f8osoproxy-deploy -f Dockerfile.deploy .
 
 login
