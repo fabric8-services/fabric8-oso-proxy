@@ -10,7 +10,7 @@ PACKAGE_PATH=$GOPATH_IN_CONTAINER/src/$PACKAGE_NAME
 
 docker build -t "$BUILDER" -f Dockerfile.builder .
 
-docker run --privileged --detach=true -t \
+docker run --detach=true -t \
     --name="$BUILDER-run" \
     -v $(pwd):$PACKAGE_PATH:Z \
     -u $(id -u $USER):$(id -g $USER) \
