@@ -2,7 +2,7 @@ FROM centos:7
 MAINTAINER "Aslak Knutsen <aslak@redhat.com>"
 ENV LANG=en_US.utf8
 ENV GOROOT=/tmp/go1.9
-ENV PATH=$PATH:/tmp/go:$GOROOT/bin
+ENV PATH=$PATH:/tmp/go/bin:$GOROOT/bin
 
 # Some packages might seem weird but they are required by the RVM installer.
 RUN yum --enablerepo=centosplus install -y \
