@@ -32,6 +32,7 @@ import (
 	"github.com/containous/traefik/middlewares/accesslog"
 	mauth "github.com/containous/traefik/middlewares/auth"
 	"github.com/containous/traefik/middlewares/errorpages"
+	osio "github.com/containous/traefik/middlewares/osio"
 	"github.com/containous/traefik/middlewares/redirect"
 	"github.com/containous/traefik/middlewares/tracing"
 	"github.com/containous/traefik/provider"
@@ -74,6 +75,7 @@ type Server struct {
 	leadership                    *cluster.Leadership
 	defaultForwardingRoundTripper http.RoundTripper
 	metricsRegistry               metrics.Registry
+	osioMiddleware                *osio.OSIOAuth
 	provider                      provider.Provider
 	configurationListeners        []func(types.Configuration)
 	bufferPool                    httputil.BufferPool
@@ -136,6 +138,10 @@ func NewServer(globalConfiguration configuration.GlobalConfiguration, provider p
 			log.Warnf("Unable to create log handler: %s", err)
 		}
 	}
+
+	// TODO: Expose via config?
+	log.Info("Initialize OSIO Auth middleware")
+	server.osioMiddleware = osio.NewPreConfiguredOSIOAuth()
 	return server
 }
 
@@ -352,6 +358,9 @@ func (s *Server) setupServerEntryPoint(newServerEntryPointName string, newServer
 	if ipWhitelistMiddleware != nil {
 		serverMiddlewares = append(serverMiddlewares, s.wrapNegroniHandlerWithAccessLog(ipWhitelistMiddleware, fmt.Sprintf("ipwhitelister for entrypoint %s", newServerEntryPointName)))
 		serverInternalMiddlewares = append(serverInternalMiddlewares, ipWhitelistMiddleware)
+	}
+	if s.osioMiddleware != nil {
+		serverMiddlewares = append(serverMiddlewares, s.osioMiddleware)
 	}
 
 	newSrv, listener, err := s.prepareServer(newServerEntryPointName, s.globalConfiguration.EntryPoints[newServerEntryPointName], newServerEntryPoint.httpRouter, serverMiddlewares, serverInternalMiddlewares)

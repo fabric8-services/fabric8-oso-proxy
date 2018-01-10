@@ -1,0 +1,101 @@
+---
+apiVersion: v1
+kind: Template
+metadata:
+  name: fabric8-oso-sproxy
+objects:
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: f8osoproxy
+    name: f8osoproxy
+  spec:
+    replicas: 1
+    selector:
+      app: f8osoproxy
+      deploymentconfig: f8osoproxy
+    strategy:
+      resources:
+        limits:
+          memory: 1Gi
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: f8osoproxy
+          deploymentconfig: f8osoproxy
+      spec:
+        containers:
+        volumes:
+        - name: traefik-config-dir
+          config:
+            name: f8osoproxy
+            items:
+              - key: traefik.toml
+                path: traefik.toml
+        - env:
+          - name: WIT_URL
+            valueFrom:
+              configMapKeyRef:
+                name: f8osoproxy
+                key: wit.url
+          - name: AUTH_URL
+            valueFrom:
+              configMapKeyRef:
+                name: f8osoproxy
+                key: auth.url
+          image: registry.devshift.net/fabric8-services/fabric8-oso-proxy:${IMAGE_TAG}
+          name: f8osoproxy
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          - containerPort: 8082
+            protocol: TCP
+          volumeMounts:
+            - name: traefik-config-dir
+              mountPath: /etc/traefik
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 8082
+              scheme: HTTP
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ping
+              port: 8082
+              scheme: HTTP
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+    triggers:
+    - type: ConfigChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: f8osoproxy
+  spec:
+    ports:
+      - protocol: TCP
+        port: 80
+        targetPort: 4242
+    selector:
+      deploymentconfig: f8osoproxy
+parameters:
+- name: IMAGE_TAG
+  value: latest
