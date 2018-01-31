@@ -65,7 +65,6 @@ func cacheResolver(locationLocator TenantLocator, tokenLocator TenantTokenLocato
 
 func (a *OSIOAuth) resolve(osioToken string) (cacheData, error) {
 	key := cacheKey(osioToken)
-	fmt.Println(key)
 	val, err := a.cache.Get(key, cacheResolver(a.RequestTenantLocation, a.RequestTenantToken, osioToken)).Get()
 
 	if data, ok := val.(cacheData); ok {
@@ -76,24 +75,25 @@ func (a *OSIOAuth) resolve(osioToken string) (cacheData, error) {
 
 //
 func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	fmt.Println("start", r.URL.Path)
+	if a.RequestTenantLocation != nil {
 
-	if a.RequestTenantLocation != nil && r.Method != "OPTIONS" {
+		if r.Method != "OPTIONS" {
+			osioToken, err := getToken(r)
+			if err != nil {
+				rw.WriteHeader(401)
+				return
+			}
 
-		osioToken, err := getToken(r)
-		if err != nil {
-			rw.WriteHeader(401)
-			return
+			cached, err := a.resolve(osioToken)
+			if err != nil {
+				rw.WriteHeader(401)
+				return
+			}
+			r.Header.Set("Target", cached.Location)
+			r.Header.Set("Authorization", "Bearer "+cached.Token)
+		} else {
+			r.Header.Set("Target", "default")
 		}
-
-		cached, err := a.resolve(osioToken)
-		if err != nil {
-			rw.WriteHeader(401)
-			return
-		}
-
-		r.Header.Set("Target", cached.Location)
-		r.Header.Set("Authorization", "Bearer "+cached.Token)
 	}
 	next(rw, r)
 }
