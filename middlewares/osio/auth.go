@@ -78,7 +78,7 @@ func (a *OSIOAuth) resolve(osioToken string) (cacheData, error) {
 func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	fmt.Println("start", r.URL.Path)
 
-	if a.RequestTenantLocation != nil {
+	if a.RequestTenantLocation != nil && r.Method == "OPTIONS" {
 
 		osioToken, err := getToken(r)
 		if err != nil {
@@ -96,7 +96,6 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 		r.Header.Set("Authorization", "Bearer "+cached.Token)
 	}
 	next(rw, r)
-	fmt.Println("done", r.URL.Path)
 }
 
 func getToken(r *http.Request) (string, error) {
