@@ -16,9 +16,6 @@ objects:
       app: f8osoproxy
       deploymentconfig: f8osoproxy
     strategy:
-      resources:
-        limits:
-          memory: 1Gi
       rollingParams:
         intervalSeconds: 1
         maxSurge: 25%
@@ -85,6 +82,9 @@ objects:
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 1Gi
     triggers:
     - type: ConfigChange
 - apiVersion: v1
