@@ -74,6 +74,7 @@ type Server struct {
 	leadership                    *cluster.Leadership
 	defaultForwardingRoundTripper http.RoundTripper
 	metricsRegistry               metrics.Registry
+	osioMiddleware                *osio.OSIOAuth
 }
 
 type serverEntryPoints map[string]*serverEntryPoint
@@ -137,6 +138,10 @@ func NewServer(globalConfiguration configuration.GlobalConfiguration) *Server {
 			log.Warnf("Unable to create log handler: %s", err)
 		}
 	}
+
+	// TODO: Expose via config?
+	fmt.Println("Initialize OSIOAuth")
+	server.osioMiddleware = osio.NewPreConfiguredOSIOAuth()
 	return server
 }
 
@@ -326,6 +331,9 @@ func (s *Server) setupServerEntryPoint(newServerEntryPointName string, newServer
 		}
 		serverMiddlewares = append(serverMiddlewares, ipWhitelistMiddleware)
 		serverInternalMiddlewares = append(serverInternalMiddlewares, ipWhitelistMiddleware)
+	}
+	if s.osioMiddleware != nil {
+		serverMiddlewares = append(serverMiddlewares, s.osioMiddleware)
 	}
 	newSrv, listener, err := s.prepareServer(newServerEntryPointName, s.globalConfiguration.EntryPoints[newServerEntryPointName], newServerEntryPoint.httpRouter, serverMiddlewares, serverInternalMiddlewares)
 	if err != nil {
@@ -954,12 +962,6 @@ func (s *Server) loadConfig(configurations types.Configurations, globalConfigura
 
 				entryPoint := globalConfiguration.EntryPoints[entryPointName]
 				n := negroni.New()
-				if frontendName == "auth" {
-					// TODO: Expose via config?
-					fmt.Println("Register OSIOAuth")
-					n.Use(osio.NewPreConfiguredOSIOAuth())
-				}
-
 				if entryPoint.Redirect != nil {
 					if redirectHandlers[entryPointName] != nil {
 						n.Use(redirectHandlers[entryPointName])
