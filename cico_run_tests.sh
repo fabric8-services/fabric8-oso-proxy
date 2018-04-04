@@ -22,3 +22,4 @@ docker exec -t "$BUILDER-run" bash -ec 'go get github.com/jteeuwen/go-bindata/..
 docker exec -t "$BUILDER-run" bash -ec 'go generate'
 docker exec -t "$BUILDER-run" bash -ec 'go build ./cmd/traefik'
 docker exec -t "$BUILDER-run" bash -ec 'go test -v ./middlewares/osio/'
+docker exec -t "$BUILDER-run" bash -ec 'go test -v ./integration/ -integration -osio'
