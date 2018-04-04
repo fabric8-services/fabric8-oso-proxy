@@ -22,6 +22,7 @@ import (
 var integration = flag.Bool("integration", false, "run integration tests")
 var container = flag.Bool("container", false, "run container integration tests")
 var host = flag.Bool("host", false, "run host integration tests")
+var osio = flag.Bool("osio", false, "run osio integration tests")
 
 func Test(t *testing.T) {
 	check.TestingT(t)
@@ -62,6 +63,10 @@ func init() {
 		// tests launched from the host
 		check.Suite(&ProxyProtocolSuite{})
 		check.Suite(&Etcd3Suite{})
+	}
+
+	if *osio {
+		check.Suite(&OSIOSuite{})
 	}
 }
 
