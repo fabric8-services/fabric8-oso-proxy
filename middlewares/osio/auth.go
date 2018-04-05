@@ -80,13 +80,13 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 		if r.Method != "OPTIONS" {
 			osioToken, err := getToken(r)
 			if err != nil {
-				rw.WriteHeader(401)
+				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 
 			cached, err := a.resolve(osioToken)
 			if err != nil {
-				rw.WriteHeader(401)
+				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 			r.Header.Set("Target", cached.Location)
@@ -106,6 +106,9 @@ func getToken(r *http.Request) (string, error) {
 	t, err := extractToken(r.Header.Get(Authorization))
 	if err != nil {
 		return "", err
+	}
+	if t == "" {
+		return "", fmt.Errorf("Missing auth")
 	}
 	return t, nil
 }

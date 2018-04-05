@@ -70,11 +70,25 @@ func (s *OSIOSuite) TestOSIO(c *check.C) {
 	log.Printf("req3 res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 404)
 
+	req, _ = http.NewRequest("GET", "http://127.0.0.1:8000/test", nil)
+	req.Header.Add("Authorization", "Bearer 4444")
+	res, _ = try.Response(req, 500*time.Millisecond)
+	c.Assert(err, check.IsNil)
+	log.Printf("req4 res.StatusCode=%d", res.StatusCode)
+	c.Assert(res.StatusCode, check.Equals, 401)
+
+	req, _ = http.NewRequest("GET", "http://127.0.0.1:8000/test", nil)
+	// req.Header.Add("Authorization", "Bearer 1111")
+	res, _ = try.Response(req, 500*time.Millisecond)
+	c.Assert(err, check.IsNil)
+	log.Printf("req5 res.StatusCode=%d", res.StatusCode)
+	c.Assert(res.StatusCode, check.Equals, 401)
+
 	req, _ = http.NewRequest("OPTIONS", "http://127.0.0.1:8000/test", nil)
 	// req.Header.Add("Authorization", "Bearer 1111")
 	res, _ = try.Response(req, 500*time.Millisecond)
 	c.Assert(err, check.IsNil)
-	log.Printf("req4 res.StatusCode=%d", res.StatusCode)
+	log.Printf("req6 res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 200)
 	checkPort(c, res, 8081)
 }
@@ -108,13 +122,18 @@ func startOSIOServer(port int, handler func(w http.ResponseWriter, r *http.Reque
 
 func serveWITRequest(rw http.ResponseWriter, req *http.Request) {
 	authHeader := req.Header.Get("Authorization")
+
 	host := ""
-	if strings.HasSuffix(authHeader, "1111") {
+	switch {
+	case strings.HasSuffix(authHeader, "1111"):
 		host = "http://127.0.0.1:8081"
-	} else if strings.HasSuffix(authHeader, "2222") {
+	case strings.HasSuffix(authHeader, "2222"):
 		host = "http://127.0.0.1:8082"
-	} else if strings.HasSuffix(authHeader, "3333") {
+	case strings.HasSuffix(authHeader, "3333"):
 		host = "http://127.0.0.1:8083" // :8083 is not present in toml file
+	case strings.HasSuffix(authHeader, "4444"):
+		rw.WriteHeader(http.StatusNotFound)
+		return
 	}
 
 	res := "{\"data\":{\"attributes\":{\"namespaces\":[{\"cluster-url\":\"" + host + "/\"}]}}}"
