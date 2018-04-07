@@ -58,7 +58,6 @@ func cacheResolver(locationLocator TenantLocator, tokenLocator TenantTokenLocato
 		if err != nil {
 			return cacheData{}, err
 		}
-		fmt.Println("resolved..")
 		return cacheData{Location: loc, Token: osoToken}, nil
 	}
 }
