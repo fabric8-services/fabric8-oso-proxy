@@ -14,6 +14,7 @@ RUN yum --enablerepo=centosplus install -y \
       tar \
       wget \
       which \
+      gcc \
     && yum clean all \
     && rm -rf /var/cache/yum
 

@@ -20,5 +20,6 @@ docker run --detach=true -t \
 
 docker exec -t "$BUILDER-run" bash -ec 'go get github.com/jteeuwen/go-bindata/...'
 docker exec -t "$BUILDER-run" bash -ec 'go generate'
-docker exec -t "$BUILDER-run" bash -ec 'go build ./cmd/traefik'
+docker exec -t "$BUILDER-run" bash -ec 'go build -o dist/traefik ./cmd/traefik'
 docker exec -t "$BUILDER-run" bash -ec 'go test -v ./middlewares/osio/'
+docker exec -t "$BUILDER-run" bash -ec 'go test -v ./integration/ -integration -osio'
