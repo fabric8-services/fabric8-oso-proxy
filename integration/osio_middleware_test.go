@@ -22,9 +22,9 @@ const (
 )
 
 // AccessLogSuite
-type OSIOSuite struct{ BaseSuite }
+type OSIOMiddlewareSuite struct{ BaseSuite }
 
-func (s *OSIOSuite) TestOSIO(c *check.C) {
+func (s *OSIOMiddlewareSuite) TestOSIOMiddleware(c *check.C) {
 	// configure OSIO
 	os.Setenv("WIT_URL", witURL)
 	os.Setenv("AUTH_URL", authURL)
@@ -34,7 +34,7 @@ func (s *OSIOSuite) TestOSIO(c *check.C) {
 	defer authServer.Close()
 
 	// Start Traefik
-	cmd, display := s.traefikCmd(withConfigFile("fixtures/osio_config.toml"))
+	cmd, display := s.traefikCmd(withConfigFile("fixtures/osio_middleware_config.toml"))
 	defer display(c)
 	err := cmd.Start()
 	c.Assert(err, checker.IsNil)
@@ -57,7 +57,7 @@ func (s *OSIOSuite) TestOSIO(c *check.C) {
 
 	req, _ = http.NewRequest("GET", "http://127.0.0.1:8000/test", nil)
 	req.Header.Add("Authorization", "Bearer 2222")
-	res, _ = try.Response(req, 500*time.Millisecond)
+	res, err = try.Response(req, 500*time.Millisecond)
 	c.Assert(err, check.IsNil)
 	log.Printf("req2 res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 200)
@@ -65,28 +65,28 @@ func (s *OSIOSuite) TestOSIO(c *check.C) {
 
 	req, _ = http.NewRequest("GET", "http://127.0.0.1:8000/test", nil)
 	req.Header.Add("Authorization", "Bearer 3333")
-	res, _ = try.Response(req, 500*time.Millisecond)
+	res, err = try.Response(req, 500*time.Millisecond)
 	c.Assert(err, check.IsNil)
 	log.Printf("req3 res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 404)
 
 	req, _ = http.NewRequest("GET", "http://127.0.0.1:8000/test", nil)
 	req.Header.Add("Authorization", "Bearer 4444")
-	res, _ = try.Response(req, 500*time.Millisecond)
+	res, err = try.Response(req, 500*time.Millisecond)
 	c.Assert(err, check.IsNil)
 	log.Printf("req4 res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 401)
 
 	req, _ = http.NewRequest("GET", "http://127.0.0.1:8000/test", nil)
 	// req.Header.Add("Authorization", "Bearer 1111")
-	res, _ = try.Response(req, 500*time.Millisecond)
+	res, err = try.Response(req, 500*time.Millisecond)
 	c.Assert(err, check.IsNil)
 	log.Printf("req5 res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 401)
 
 	req, _ = http.NewRequest("OPTIONS", "http://127.0.0.1:8000/test", nil)
 	// req.Header.Add("Authorization", "Bearer 1111")
-	res, _ = try.Response(req, 500*time.Millisecond)
+	res, err = try.Response(req, 500*time.Millisecond)
 	c.Assert(err, check.IsNil)
 	log.Printf("req6 res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 200)

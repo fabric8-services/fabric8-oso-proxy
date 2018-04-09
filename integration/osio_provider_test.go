@@ -26,8 +26,6 @@ func (s *OSIOProviderSuite) TestOSIOProvider(c *check.C) {
 	// Start Traefik
 	cmd, display := s.traefikCmd(withConfigFile("fixtures/osio_provider_config.toml"))
 	defer display(c)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
 	err := cmd.Start()
 	c.Assert(err, checker.IsNil)
 	defer cmd.Process.Kill()

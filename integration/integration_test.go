@@ -66,7 +66,7 @@ func init() {
 	}
 
 	if *osio {
-		// check.Suite(&OSIOSuite{})
+		check.Suite(&OSIOMiddlewareSuite{})
 		check.Suite(&OSIOProviderSuite{})
 	}
 }
