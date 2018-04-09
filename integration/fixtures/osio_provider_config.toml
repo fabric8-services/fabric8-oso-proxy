@@ -1,0 +1,16 @@
+logLevel = "ERROR"
+defaultEntryPoints = ["http"]
+[entryPoints]
+  [entryPoints.http]
+  address = ":8000"
+  [entryPoints.traefik]
+  address = ":7888"
+
+checkNewVersion = false
+
+[api]
+entryPoint = "traefik"
+
+[osio]
+# clustersAPI will be environment dependent, for prod-preview it would be https://auth.prod-preview.openshift.io/api/clusters/
+clustersAPI = "http://localhost:9091/api/clusters/"
