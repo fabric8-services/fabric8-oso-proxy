@@ -49,7 +49,7 @@ objects:
               configMapKeyRef:
                 name: f8osoproxy
                 key: auth.url
-          image: registry.devshift.net/fabric8-services/fabric8-oso-proxy:${IMAGE_TAG}
+          image: ${IMAGE}:${IMAGE_TAG}
           name: f8osoproxy
           imagePullPolicy: Always
           ports:
@@ -100,5 +100,7 @@ objects:
     selector:
       deploymentconfig: f8osoproxy
 parameters:
+- name: IMAGE
+  value: registry.devshift.net/fabric8-services/fabric8-oso-proxy
 - name: IMAGE_TAG
   value: latest
