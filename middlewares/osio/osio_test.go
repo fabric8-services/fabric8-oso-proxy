@@ -23,39 +23,39 @@ type testData struct {
 var tables = []testData{
 	{
 		"/",
-		"http://api.cluster1.com/",
+		"http://api.cluster1.com",
 		"/",
 	},
 	{
 		"/api",
-		"http://api.cluster1.com/",
+		"http://api.cluster1.com",
 		"/",
 	},
 	{
 		"/api/anything",
-		"http://api.cluster1.com/",
+		"http://api.cluster1.com",
 		"/anything",
 	},
 	{
 		"/metrics",
-		"http://metrics.cluster1.com/",
+		"http://metrics.cluster1.com",
 		"/",
 	},
 	{
 		"/metrics/anything",
-		"http://metrics.cluster1.com/",
+		"http://metrics.cluster1.com",
 		"/anything",
 	},
 	{
 		"/restall",
-		"http://api.cluster1.com/",
+		"http://api.cluster1.com",
 		"/restall",
 	},
 }
 
 var currTestNo int
 
-func TestBasic(t *testing.T) {
+func TestOSIOMiddleware(t *testing.T) {
 	witServer := createServer(serverWITRequest)
 	authServer := createServer(serverAuthRequest)
 	witURL := "http://" + witServer.Listener.Addr().String() + "/"
@@ -99,8 +99,8 @@ func serverWITRequest(rw http.ResponseWriter, req *http.Request) {
 				"namespaces": [
 					{
 						"name": "myuser-preview-stage",
-						"cluster-metrics-url": "http://metrics.cluster1.com/",
-						"cluster-url": "http://api.cluster1.com/"
+						"cluster-metrics-url": "http://metrics.cluster1.com",
+						"cluster-url": "http://api.cluster1.com"
 					}
 				]
 			}

@@ -46,13 +46,37 @@ func TestScheduleConfigPull(t *testing.T) {
 
 func TestLoadRules(t *testing.T) {
 	provider := &Provider{}
-	clusters := []clusterData{
-		{APIURL: "https://api.starter-us-east-2.openshift.com"},
+
+	tables := []struct {
+		clusters      []clusterData
+		expectedRules int
+	}{
+		{
+			[]clusterData{
+				{
+					APIURL:     "https://api.starter-us-east-2.openshift.com",
+					MetricsURL: "https://metrics.starter-us-east-2.openshift.com",
+				},
+			},
+			3,
+		},
+		{
+			[]clusterData{
+				{
+					APIURL: "https://api.starter-us-east-2.openshift.com",
+				},
+			},
+			2,
+		},
 	}
-	clusterResp := &clusterResponse{Clusters: clusters}
-	config := provider.loadRules(clusterResp)
-	checkConfig(t, config, 2)
+
+	for _, table := range tables {
+		clusterResp := &clusterResponse{Clusters: table.clusters}
+		config := provider.loadRules(clusterResp)
+		checkConfig(t, config, table.expectedRules)
+	}
 }
+
 func TestLoadRulesDefaultChange(t *testing.T) {
 	provider := &Provider{}
 
@@ -103,7 +127,7 @@ func TestCreateFrontend(t *testing.T) {
 	assert.Equal(t, 1, len(actual.Routes), "Mis-match no of routes, want:%d, got:%d", 1, len(actual.Routes))
 	routes1 := actual.Routes["test_1"]
 	require.NotZero(t, routes1)
-	assert.Contains(t, routes1.Rule, "HeadersRegexp:Target")
+	assert.Contains(t, routes1.Rule, "Headers:Target")
 	assert.Contains(t, routes1.Rule, url)
 }
 func TestCreateBackend(t *testing.T) {

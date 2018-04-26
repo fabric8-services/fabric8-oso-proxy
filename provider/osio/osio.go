@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/cenk/backoff"
@@ -150,9 +151,16 @@ func (p *Provider) loadRules(clusterResp *clusterResponse) *types.Configuration 
 		if p.defaultBackendURL != "" && p.defaultBackendURL == cluster.APIURL {
 			defaultBackendExist = true
 		}
+
 		configInd := fmt.Sprintf("%d", ind+1)
-		config.Frontends["frontend"+configInd] = createFrontend(cluster.APIURL, "backend"+configInd)
-		config.Backends["backend"+configInd] = createBackend(cluster.APIURL)
+		if cluster.APIURL != "" {
+			config.Frontends["api"+configInd] = createFrontend(cluster.APIURL, "api"+configInd)
+			config.Backends["api"+configInd] = createBackend(cluster.APIURL)
+		}
+		if cluster.MetricsURL != "" {
+			config.Frontends["metrics"+configInd] = createFrontend(cluster.MetricsURL, "metrics"+configInd)
+			config.Backends["metrics"+configInd] = createBackend(cluster.MetricsURL)
+		}
 	}
 	if !defaultBackendExist {
 		p.defaultBackendURL = clusterResp.Clusters[0].APIURL
@@ -166,13 +174,19 @@ func (p *Provider) loadRules(clusterResp *clusterResponse) *types.Configuration 
 }
 
 func createFrontend(clusterURL string, backend string) *types.Frontend {
+	clusterURL = normalizeURL(clusterURL)
 	routes := make(map[string]types.Route)
-	routes["test_1"] = types.Route{Rule: "HeadersRegexp:Target," + clusterURL}
+	routes["test_1"] = types.Route{Rule: "Headers:Target," + clusterURL}
 	return &types.Frontend{Backend: backend, Routes: routes}
 }
 
 func createBackend(clusterURL string) *types.Backend {
+	clusterURL = normalizeURL(clusterURL)
 	servers := make(map[string]types.Server)
 	servers["server1"] = types.Server{URL: clusterURL}
 	return &types.Backend{Servers: servers}
+}
+
+func normalizeURL(url string) string {
+	return strings.TrimSuffix(url, "/")
 }

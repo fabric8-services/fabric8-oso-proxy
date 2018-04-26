@@ -60,7 +60,7 @@ func cacheResolver(locationLocator TenantLocator, tokenLocator TenantTokenLocato
 		if err != nil {
 			return cacheData{}, err
 		}
-		loc := getURL(ns, osoService)
+		loc := getServiceURL(ns, osoService)
 		return cacheData{Location: loc, Token: osoToken}, nil
 	}
 }
@@ -81,18 +81,19 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 
 		if r.Method != "OPTIONS" {
 			osioToken, err := getToken(r)
-			osoService := getService(r.URL.Path)
 			if err != nil {
 				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
+			osoService := getService(r.URL.Path)
 
 			cached, err := a.resolve(osioToken, osoService)
 			if err != nil {
 				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			r.Header.Set("Target", cached.Location)
+			targetURL := normalizeURL(cached.Location)
+			r.Header.Set("Target", targetURL)
 			r.Header.Set("Authorization", "Bearer "+cached.Token)
 			stripPathPrefix(r, osoService)
 		} else {
@@ -144,7 +145,7 @@ func cacheKey(token, service string) string {
 	return hash
 }
 
-func getURL(ns namespace, service string) string {
+func getServiceURL(ns namespace, service string) string {
 	switch service {
 	case metrics:
 		return ns.ClusterMetricsURL
@@ -169,4 +170,8 @@ func stripPrefix(s, prefix string) string {
 
 func ensureLeadingSlash(str string) string {
 	return "/" + strings.TrimPrefix(str, "/")
+}
+
+func normalizeURL(url string) string {
+	return strings.TrimSuffix(url, "/")
 }
