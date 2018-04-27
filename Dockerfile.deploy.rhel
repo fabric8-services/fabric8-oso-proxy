@@ -8,7 +8,7 @@ ENV INSTALL_PREFIX=/usr/local/fabric8-osoproxy
 ENV F8_USER_NAME=fabric8
 RUN useradd --no-create-home -s /bin/bash ${F8_USER_NAME}
 
-COPY traefik ${INSTALL_PREFIX}/bin/fabric8-osoproxy
+COPY dist/traefik ${INSTALL_PREFIX}/bin/fabric8-osoproxy
 COPY ./osoproxy+pmcd.sh /osoproxy+pmcd.sh
 EXPOSE 44321
 
