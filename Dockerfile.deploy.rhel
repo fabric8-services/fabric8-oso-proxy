@@ -1,0 +1,21 @@
+FROM prod.registry.devshift.net/osio-prod/base/pcp:latest
+LABEL maintainer "Devtools <devtools@redhat.com>"
+LABEL author "Devtools <devtools@redhat.com>"
+ENV LANG=en_US.utf8
+ENV INSTALL_PREFIX=/usr/local/fabric8-osoproxy
+
+# Create a non-root user and a group with the same name: "fabric8"
+ENV F8_USER_NAME=fabric8
+RUN useradd --no-create-home -s /bin/bash ${F8_USER_NAME}
+
+COPY dist/traefik ${INSTALL_PREFIX}/bin/fabric8-osoproxy
+COPY ./osoproxy+pmcd.sh /osoproxy+pmcd.sh
+EXPOSE 44321
+
+# From here onwards, any RUN, CMD, or ENTRYPOINT will be run under the following user
+USER ${F8_USER_NAME}
+
+WORKDIR ${INSTALL_PREFIX}
+ENTRYPOINT [ "/osoproxy+pmcd.sh" ]
+
+EXPOSE 8080
