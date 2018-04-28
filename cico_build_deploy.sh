@@ -2,9 +2,13 @@
 
 . cico_setup.sh
 
-./cico_run_tests.sh
-
 login
+
+if [ ! -f .cico-prepare ]; then
+    ./cico_run_tests.sh
+
+    touch .cico-prepare
+fi
 
 docker build -t f8osoproxy-deploy -f "${DOCKERFILE_DEPLOY}" .
 
