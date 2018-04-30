@@ -2,10 +2,17 @@
 
 REGISTRY="push.registry.devshift.net"
 
+if [ "$TARGET" = "rhel" ]; then
+  DOCKERFILE_DEPLOY="Dockerfile.deploy.rhel"
+else
+  DOCKERFILE_DEPLOY="Dockerfile.deploy"
+fi
+
 function tag_push() {
-  TARGET=$1
-  docker tag f8osoproxy-deploy $TARGET
-  docker push $TARGET
+  local tag=$1
+
+  docker tag f8osoproxy-deploy $tag
+  docker push $tag
 }
 
 # Source environment variables of the jenkins slave
@@ -35,7 +42,7 @@ set -x
 set -e
 
  # We need to disable selinux for now, XXX
-/usr/sbin/setenforce 0
+/usr/sbin/setenforce 0 || :
 
 # Get all the deps in
 yum -y install \
