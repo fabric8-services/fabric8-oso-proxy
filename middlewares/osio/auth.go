@@ -13,6 +13,8 @@ const (
 	Authorization = "Authorization"
 	api           = "api"
 	metrics       = "metrics"
+	console       = "console"
+	logs          = "logs"
 )
 
 type TenantLocator func(token, service string) (namespace, error)
@@ -56,9 +58,12 @@ func cacheResolver(locationLocator TenantLocator, tokenLocator TenantTokenLocato
 		if err != nil {
 			return cacheData{}, err
 		}
-		osoToken, err := tokenLocator(osioToken, ns.ClusterURL)
-		if err != nil {
-			return cacheData{}, err
+		osoToken := ""
+		if !isRedirectService(osoService) {
+			osoToken, err = tokenLocator(osioToken, ns.ClusterURL)
+			if err != nil {
+				return cacheData{}, err
+			}
 		}
 		loc := getServiceURL(ns, osoService)
 		return cacheData{Location: loc, Token: osoToken}, nil
@@ -75,7 +80,6 @@ func (a *OSIOAuth) resolve(osioToken, osoService string) (cacheData, error) {
 	return cacheData{}, err
 }
 
-//
 func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	if a.RequestTenantLocation != nil {
 
@@ -92,10 +96,21 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
+
 			targetURL := normalizeURL(cached.Location)
-			r.Header.Set("Target", targetURL)
-			r.Header.Set("Authorization", "Bearer "+cached.Token)
 			stripPathPrefix(r, osoService)
+			if isRedirectService(osoService) {
+				// TODO: NT: refactor logic
+				redirectURL := targetURL + r.URL.Path
+				if osoService == logs && r.URL.RawQuery != "" {
+					redirectURL = strings.Join([]string{redirectURL, "?", r.URL.RawQuery}, "")
+				}
+				http.Redirect(rw, r, redirectURL, http.StatusTemporaryRedirect)
+				return
+			} else {
+				r.Header.Set("Target", targetURL)
+				r.Header.Set("Authorization", "Bearer "+cached.Token)
+			}
 		} else {
 			r.Header.Set("Target", "default")
 		}
@@ -120,10 +135,14 @@ func getToken(r *http.Request) (string, error) {
 
 func getService(reqPath string) string {
 	switch {
-	case strings.HasPrefix(reqPath, "/"+metrics):
-		return metrics
 	case strings.HasPrefix(reqPath, "/"+api):
 		return api
+	case strings.HasPrefix(reqPath, "/"+metrics):
+		return metrics
+	case strings.HasPrefix(reqPath, "/"+console):
+		return console
+	case strings.HasPrefix(reqPath, "/"+logs):
+		return logs
 	default:
 		return api
 	}
@@ -147,13 +166,24 @@ func cacheKey(token, service string) string {
 
 func getServiceURL(ns namespace, service string) string {
 	switch service {
-	case metrics:
-		return ns.ClusterMetricsURL
 	case api:
 		return ns.ClusterURL
+	case metrics:
+		return ns.ClusterMetricsURL
+	case console:
+		return ns.ClusterConsoleURL
+	case logs:
+		return ns.ClusterLoggingURL
 	default:
 		return ns.ClusterURL
 	}
+}
+
+func isRedirectService(service string) bool {
+	if service == console || service == logs {
+		return true
+	}
+	return false
 }
 
 func stripPathPrefix(r *http.Request, osoService string) {

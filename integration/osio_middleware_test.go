@@ -22,9 +22,9 @@ func (s *OSIOMiddlewareSuite) TestOSIO(c *check.C) {
 	os.Setenv("AUTH_URL", common.AuthURL)
 	os.Setenv("SERVICE_ACCOUNT_ID", "any-id")
 	os.Setenv("SERVICE_ACCOUNT_SECRET", "anysecret")
-	witServer := common.StartOSIOServer(9090, common.ServeWITRequest)
+	witServer := common.StartServer(9090, common.ServeWITRequest)
 	defer witServer.Close()
-	authServer := common.StartOSIOServer(9091, common.ServerAuthRequest(serverMiddlewareCluster))
+	authServer := common.StartServer(9091, common.ServerAuthRequest(serverMiddlewareCluster))
 	defer authServer.Close()
 
 	// Start Traefik
@@ -35,9 +35,9 @@ func (s *OSIOMiddlewareSuite) TestOSIO(c *check.C) {
 	defer cmd.Process.Kill()
 
 	// Start OSIO servers
-	ts1 := common.StartOSIOServer(8081, nil)
+	ts1 := common.StartServer(8081, nil)
 	defer ts1.Close()
-	ts2 := common.StartOSIOServer(8082, nil)
+	ts2 := common.StartServer(8082, nil)
 	defer ts2.Close()
 
 	// Make some requests

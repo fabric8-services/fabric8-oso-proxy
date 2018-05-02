@@ -13,7 +13,7 @@ const (
 	AuthURL = "http://127.0.0.1:9091"
 )
 
-func StartOSIOServer(port int, handler func(w http.ResponseWriter, r *http.Request)) (ts *httptest.Server) {
+func StartServer(port int, handler func(w http.ResponseWriter, r *http.Request)) (ts *httptest.Server) {
 	if handler == nil {
 		handler = func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "port=%d", port)
