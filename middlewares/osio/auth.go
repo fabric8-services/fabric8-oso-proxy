@@ -11,9 +11,13 @@ import (
 
 const (
 	Authorization = "Authorization"
+	api           = "api"
+	metrics       = "metrics"
+	console       = "console"
+	logs          = "logs"
 )
 
-type TenantLocator func(token string) (string, error)
+type TenantLocator func(token, service string) (namespace, error)
 type TenantTokenLocator func(token, location string) (string, error)
 
 type cacheData struct {
@@ -48,23 +52,27 @@ func NewOSIOAuth(witURL, authURL string) *OSIOAuth {
 	}
 }
 
-func cacheResolver(locationLocator TenantLocator, tokenLocator TenantTokenLocator, osioToken string) Resolver {
+func cacheResolver(locationLocator TenantLocator, tokenLocator TenantTokenLocator, osioToken, osoService string) Resolver {
 	return func() (interface{}, error) {
-		loc, err := locationLocator(osioToken)
+		ns, err := locationLocator(osioToken, osoService)
 		if err != nil {
 			return cacheData{}, err
 		}
-		osoToken, err := tokenLocator(osioToken, loc)
-		if err != nil {
-			return cacheData{}, err
+		osoToken := ""
+		if !isRedirectService(osoService) {
+			osoToken, err = tokenLocator(osioToken, ns.ClusterURL)
+			if err != nil {
+				return cacheData{}, err
+			}
 		}
+		loc := getServiceURL(ns, osoService)
 		return cacheData{Location: loc, Token: osoToken}, nil
 	}
 }
 
-func (a *OSIOAuth) resolve(osioToken string) (cacheData, error) {
-	key := cacheKey(osioToken)
-	val, err := a.cache.Get(key, cacheResolver(a.RequestTenantLocation, a.RequestTenantToken, osioToken)).Get()
+func (a *OSIOAuth) resolve(osioToken, osoService string) (cacheData, error) {
+	key := cacheKey(osioToken, osoService)
+	val, err := a.cache.Get(key, cacheResolver(a.RequestTenantLocation, a.RequestTenantToken, osioToken, osoService)).Get()
 
 	if data, ok := val.(cacheData); ok {
 		return data, err
@@ -72,7 +80,6 @@ func (a *OSIOAuth) resolve(osioToken string) (cacheData, error) {
 	return cacheData{}, err
 }
 
-//
 func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	if a.RequestTenantLocation != nil {
 
@@ -82,14 +89,28 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
+			osoService := getService(r.URL.Path)
 
-			cached, err := a.resolve(osioToken)
+			cached, err := a.resolve(osioToken, osoService)
 			if err != nil {
 				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			r.Header.Set("Target", cached.Location)
-			r.Header.Set("Authorization", "Bearer "+cached.Token)
+
+			targetURL := normalizeURL(cached.Location)
+			stripPathPrefix(r, osoService)
+			if isRedirectService(osoService) {
+				// TODO: NT: refactor logic
+				redirectURL := targetURL + r.URL.Path
+				if osoService == logs && r.URL.RawQuery != "" {
+					redirectURL = strings.Join([]string{redirectURL, "?", r.URL.RawQuery}, "")
+				}
+				http.Redirect(rw, r, redirectURL, http.StatusTemporaryRedirect)
+				return
+			} else {
+				r.Header.Set("Target", targetURL)
+				r.Header.Set("Authorization", "Bearer "+cached.Token)
+			}
 		} else {
 			r.Header.Set("Target", "default")
 		}
@@ -112,6 +133,21 @@ func getToken(r *http.Request) (string, error) {
 	return t, nil
 }
 
+func getService(reqPath string) string {
+	switch {
+	case strings.HasPrefix(reqPath, "/"+api):
+		return api
+	case strings.HasPrefix(reqPath, "/"+metrics):
+		return metrics
+	case strings.HasPrefix(reqPath, "/"+console):
+		return console
+	case strings.HasPrefix(reqPath, "/"+logs):
+		return logs
+	default:
+		return api
+	}
+}
+
 func extractToken(auth string) (string, error) {
 	auths := strings.Split(auth, " ")
 	if len(auths) == 0 {
@@ -120,9 +156,52 @@ func extractToken(auth string) (string, error) {
 	return auths[len(auths)-1], nil
 }
 
-func cacheKey(token string) string {
+func cacheKey(token, service string) string {
 	h := sha256.New()
-	h.Write([]byte(token))
+	key := fmt.Sprintf("%s_%s", token, service)
+	h.Write([]byte(key))
 	hash := hex.EncodeToString(h.Sum(nil))
 	return hash
+}
+
+func getServiceURL(ns namespace, service string) string {
+	switch service {
+	case api:
+		return ns.ClusterURL
+	case metrics:
+		return ns.ClusterMetricsURL
+	case console:
+		return ns.ClusterConsoleURL
+	case logs:
+		return ns.ClusterLoggingURL
+	default:
+		return ns.ClusterURL
+	}
+}
+
+func isRedirectService(service string) bool {
+	if service == console || service == logs {
+		return true
+	}
+	return false
+}
+
+func stripPathPrefix(r *http.Request, osoService string) {
+	prefix := "/" + osoService
+	if strings.HasPrefix(r.URL.Path, prefix) {
+		r.URL.Path = stripPrefix(r.URL.Path, prefix)
+		r.RequestURI = r.URL.RequestURI()
+	}
+}
+
+func stripPrefix(s, prefix string) string {
+	return ensureLeadingSlash(strings.TrimPrefix(s, prefix))
+}
+
+func ensureLeadingSlash(str string) string {
+	return "/" + strings.TrimPrefix(str, "/")
+}
+
+func normalizeURL(url string) string {
+	return strings.TrimSuffix(url, "/")
 }

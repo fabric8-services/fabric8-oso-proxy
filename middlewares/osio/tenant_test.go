@@ -38,10 +38,10 @@ func TestTenantServiceClient(t *testing.T) {
 				"http://"+server.Listener.Addr().String()+"/",
 			)
 
-			url, err := locator("xxxxx")
+			ns, err := locator("xxxxx", api)
 			server.Close()
 
-			assert.Equal(t, test.url, url, "expected URL to be equal")
+			assert.Equal(t, test.url, ns.ClusterURL, "expected URL to be equal")
 			if test.err == nil {
 				assert.NoError(t, err, "expected no error")
 			} else {

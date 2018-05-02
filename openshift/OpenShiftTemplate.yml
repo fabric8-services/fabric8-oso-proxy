@@ -49,6 +49,16 @@ objects:
               configMapKeyRef:
                 name: f8osoproxy
                 key: auth.url
+          - name: SERVICE_ACCOUNT_ID
+            valueFrom:
+              secretKeyRef:
+                name: f8osoproxy
+                key: service.account.id
+          - name: SERVICE_ACCOUNT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: f8osoproxy
+                key: service.account.secret
           image: ${IMAGE}:${IMAGE_TAG}
           name: f8osoproxy
           imagePullPolicy: Always

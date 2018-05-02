@@ -1,0 +1,17 @@
+logLevel = "ERROR"
+defaultEntryPoints = ["http"]
+[entryPoints]
+  [entryPoints.http]
+  address = ":8000"
+  [entryPoints.traefik]
+  address = ":7888"
+
+checkNewVersion = false
+
+[api]
+entryPoint = "traefik"
+
+[osio]
+refreshSeconds = 3
+clusterAPI = "http://127.0.0.1:9091/api/clusters"
+tokenAPI = "http://127.0.0.1:9091/api/token"

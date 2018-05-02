@@ -1,0 +1,84 @@
+logLevel = "ERROR"
+defaultEntryPoints = ["http"]
+[entryPoints]
+  [entryPoints.http]
+  address = ":8000"
+  [entryPoints.traefik]
+  address = ":7888"
+
+checkNewVersion = false
+
+[api]
+entryPoint = "traefik"
+
+[file]
+watch = false
+
+[Backends]
+  [Backends.api1]
+    [Backends.api1.Servers]
+      [Backends.api1.Servers.server1]
+        URL = "http://127.0.0.1:8081"
+        Weight = 0
+  [Backends.api2]
+    [Backends.api2.Servers]
+      [Backends.api2.Servers.server1]
+        URL = "http://127.0.0.1:8082"
+        Weight = 0
+  [Backends.default]
+    [Backends.default.Servers]
+      [Backends.default.Servers.server1]
+        URL = "http://127.0.0.1:8081"
+        Weight = 0
+  [Backends.metrics1]
+    [Backends.metrics1.Servers]
+      [Backends.metrics1.Servers.server1]
+        URL = "http://127.0.0.1:7071"
+        Weight = 0
+  [Backends.metrics2]
+    [Backends.metrics2.Servers]
+      [Backends.metrics2.Servers.server1]
+        URL = "http://127.0.0.1:7072"
+        Weight = 0
+
+[Frontends]
+  [Frontends.api1]
+    Backend = "api1"
+    PassHostHeader = false
+    PassTLSCert = false
+    Priority = 0
+    [Frontends.api1.Routes]
+      [Frontends.api1.Routes.test_1]
+        Rule = "Headers:Target,http://127.0.0.1:8081"
+  [Frontends.api2]
+    Backend = "api2"
+    PassHostHeader = false
+    PassTLSCert = false
+    Priority = 0
+    [Frontends.api2.Routes]
+      [Frontends.api2.Routes.test_1]
+        Rule = "Headers:Target,http://127.0.0.1:8082"
+  [Frontends.default]
+    Backend = "default"
+    PassHostHeader = false
+    PassTLSCert = false
+    Priority = 0
+    [Frontends.default.Routes]
+      [Frontends.default.Routes.test_1]
+        Rule = "Headers:Target,default"
+  [Frontends.metrics1]
+    Backend = "metrics1"
+    PassHostHeader = false
+    PassTLSCert = false
+    Priority = 0
+    [Frontends.metrics1.Routes]
+      [Frontends.metrics1.Routes.test_1]
+        Rule = "Headers:Target,http://127.0.0.1:7071"
+  [Frontends.metrics2]
+    Backend = "metrics2"
+    PassHostHeader = false
+    PassTLSCert = false
+    Priority = 0
+    [Frontends.metrics2.Routes]
+      [Frontends.metrics2.Routes.test_1]
+        Rule = "Headers:Target,http://127.0.0.1:7072"

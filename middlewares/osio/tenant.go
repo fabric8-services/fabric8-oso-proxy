@@ -7,7 +7,7 @@ import (
 )
 
 func CreateTenantLocator(client *http.Client, tenantBaseURL string) TenantLocator {
-	return func(token string) (string, error) {
+	return func(token, service string) (namespace, error) {
 		return locateTenant(client, tenantBaseURL, token)
 	}
 }
@@ -25,32 +25,34 @@ type attributes struct {
 }
 
 type namespace struct {
-	ClusterURL string `json:"cluster-url"`
+	ClusterURL        string `json:"cluster-url"`
+	ClusterMetricsURL string `json:"cluster-metrics-url"`
+	ClusterConsoleURL string `json:"cluster-console-url"`
+	ClusterLoggingURL string `json:"cluster-logging-url"`
 }
 
-func getClusterURL(resp response) (string, error) {
+func getNamespace(resp response) (ns namespace, err error) {
 	if len(resp.Data.Attributes.Namespaces) == 0 {
-		return "", fmt.Errorf("unable to locate cluster url")
+		return ns, fmt.Errorf("unable to locate namespace")
 	}
 
-	return resp.Data.Attributes.Namespaces[0].ClusterURL, nil
+	return resp.Data.Attributes.Namespaces[0], nil
 }
 
-func locateTenant(client *http.Client, tenantBaseURL, osioToken string) (string, error) {
+func locateTenant(client *http.Client, tenantBaseURL, osioToken string) (ns namespace, err error) {
 
 	req, err := http.NewRequest("GET", tenantBaseURL+"/user/services", nil)
 	if err != nil {
-		return "", err
+		return ns, err
 	}
 	req.Header.Set(Authorization, "Bearer "+osioToken)
-	//req = req.WithContext(context.)
 	resp, err := client.Do(req)
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Unknown status code " + resp.Status)
+		return ns, fmt.Errorf("Unknown status code " + resp.Status)
 	}
 	defer resp.Body.Close()
 
 	var r response
 	json.NewDecoder(resp.Body).Decode(&r)
-	return getClusterURL(r)
+	return getNamespace(r)
 }
