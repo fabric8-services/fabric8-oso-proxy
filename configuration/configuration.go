@@ -2,6 +2,7 @@ package configuration
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/containous/traefik/provider/kubernetes"
 	"github.com/containous/traefik/provider/marathon"
 	"github.com/containous/traefik/provider/mesos"
+	"github.com/containous/traefik/provider/osio"
 	"github.com/containous/traefik/provider/rancher"
 	"github.com/containous/traefik/provider/rest"
 	"github.com/containous/traefik/provider/zk"
@@ -104,6 +106,7 @@ type GlobalConfiguration struct {
 	API                       *api.Handler            `description:"Enable api/dashboard" export:"true"`
 	Metrics                   *types.Metrics          `description:"Enable a metrics exporter" export:"true"`
 	Ping                      *ping.Handler           `description:"Enable ping" export:"true"`
+	OSIO                      *osio.Provider          `description:"Enable OSIO backend with default settings" export:"true"`
 }
 
 // WebCompatibility is a configuration to handle compatibility with deprecated web provider options
@@ -392,6 +395,27 @@ func (gc *GlobalConfiguration) initACMEProvider() {
 			}
 			gc.ACME = nil
 		}
+	}
+
+	if gc.OSIO != nil {
+		saID := os.Getenv("SERVICE_ACCOUNT_ID")
+		if len(saID) <= 0 {
+			panic("Missing SERVICE_ACCOUNT_ID")
+		}
+		gc.OSIO.ServiceAccountID = saID
+
+		saSecret := os.Getenv("SERVICE_ACCOUNT_SECRET")
+		if len(saSecret) <= 0 {
+			panic("Missing SERVICE_ACCOUNT_SECRET")
+		}
+		authURL := os.Getenv("AUTH_URL")
+		if len(gc.OSIO.TokenAPI) <= 0 {
+			gc.OSIO.TokenAPI = authURL + "/token"
+		}
+		if len(gc.OSIO.ClusterAPI) <= 0 {
+			gc.OSIO.ClusterAPI = authURL + "/clusters"
+		}
+		gc.OSIO.ServiceAccountSecret = saSecret
 	}
 }
 
