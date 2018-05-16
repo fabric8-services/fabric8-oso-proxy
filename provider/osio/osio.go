@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/cenk/backoff"
@@ -155,7 +156,9 @@ func (p *Provider) loadRules(clusterResp *clusterResponse) *types.Configuration 
 		config.Backends["backend"+configInd] = createBackend(cluster.APIURL)
 	}
 	if !defaultBackendExist {
-		p.defaultBackendURL = clusterResp.Clusters[0].APIURL
+		if len(clusterResp.Clusters) > 0 {
+			p.defaultBackendURL = clusterResp.Clusters[0].APIURL
+		}
 	}
 	if p.defaultBackendURL != "" {
 		config.Frontends["default"] = createFrontend("default", "default")
@@ -166,13 +169,19 @@ func (p *Provider) loadRules(clusterResp *clusterResponse) *types.Configuration 
 }
 
 func createFrontend(clusterURL string, backend string) *types.Frontend {
+	clusterURL = normalizeURL(clusterURL)
 	routes := make(map[string]types.Route)
-	routes["test_1"] = types.Route{Rule: "HeadersRegexp:Target," + clusterURL}
+	routes["test_1"] = types.Route{Rule: "Headers:Target," + clusterURL}
 	return &types.Frontend{Backend: backend, Routes: routes}
 }
 
 func createBackend(clusterURL string) *types.Backend {
+	clusterURL = normalizeURL(clusterURL)
 	servers := make(map[string]types.Server)
 	servers["server1"] = types.Server{URL: clusterURL}
 	return &types.Backend{Servers: servers}
+}
+
+func normalizeURL(url string) string {
+	return strings.TrimSuffix(url, "/")
 }

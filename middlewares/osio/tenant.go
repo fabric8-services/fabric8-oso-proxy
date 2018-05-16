@@ -41,9 +41,12 @@ type attributes struct {
 }
 
 type namespace struct {
-	Name       string `json:"name"`
-	Type       string `json:"type"`
-	ClusterURL string `json:"cluster-url"`
+	Name              string `json:"name"`
+	Type              string `json:"type"`
+	ClusterURL        string `json:"cluster-url"`
+	ClusterMetricsURL string `json:"cluster-metrics-url,omitempty"`
+	ClusterConsoleURL string `json:"cluster-console-url,omitempty"`
+	ClusterLoggingURL string `json:"cluster-logging-url,omitempty"`
 }
 
 func getNamespace(resp response) (ns namespace, err error) {

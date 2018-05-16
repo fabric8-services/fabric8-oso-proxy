@@ -103,7 +103,7 @@ func TestCreateFrontend(t *testing.T) {
 	assert.Equal(t, 1, len(actual.Routes), "Mis-match no of routes, want:%d, got:%d", 1, len(actual.Routes))
 	routes1 := actual.Routes["test_1"]
 	require.NotZero(t, routes1)
-	assert.Contains(t, routes1.Rule, "HeadersRegexp:Target")
+	assert.Contains(t, routes1.Rule, "Headers:Target")
 	assert.Contains(t, routes1.Rule, url)
 }
 func TestCreateBackend(t *testing.T) {

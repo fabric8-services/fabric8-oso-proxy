@@ -12,6 +12,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type testCheCtx struct {
+	tables          []testCheData
+	authCallCount   int
+	tenantCallCount int
+	currInd         int
+}
+
 type testCheData struct {
 	inputPath      string
 	userID         string
@@ -19,7 +26,7 @@ type testCheData struct {
 	expectedToken  string
 }
 
-var cheDataTables = []testCheData{
+var cheCtx = testCheCtx{tables: []testCheData{
 	{
 		"/api",
 		"john",
@@ -32,17 +39,14 @@ var cheDataTables = []testCheData{
 		"127.0.0.1:9091",
 		"1000_che_secret",
 	},
-}
+}}
 
-var currCheTestInd int
-var cheTenantCalls int
-
-func TestBasic(t *testing.T) {
+func TestChe(t *testing.T) {
 	os.Setenv("AUTH_TOKEN_KEY", "foo")
 
-	authServer := createServer(serveAuthRequest)
+	authServer := cheCtx.createServer(cheCtx.serveAuthRequest)
 	defer authServer.Close()
-	tenantServer := createServer(serverTenantRequest)
+	tenantServer := cheCtx.createServer(cheCtx.serveTenantRequest)
 	defer tenantServer.Close()
 
 	authURL := "http://" + authServer.Listener.Addr().String()
@@ -51,13 +55,13 @@ func TestBasic(t *testing.T) {
 	srvAccSecret := "secret"
 
 	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret)
-	osioServer := createServer(serverOSIORequest(osio))
+	osioServer := cheCtx.createServer(cheCtx.serverOSIORequest(osio))
 	defer osioServer.Close()
 	osioURL := osioServer.Listener.Addr().String()
 
-	for ind, table := range cheDataTables {
-		currCheTestInd = ind
-		cluster := startServer(table.expectedTarget, serverClusterReqeust)
+	for ind, table := range cheCtx.tables {
+		cheCtx.currInd = ind
+		cluster := cheCtx.startServer(table.expectedTarget, cheCtx.serveClusterReqeust)
 
 		currReqPath := table.inputPath
 		cheSAToken := "1000_che_sa_token"
@@ -73,16 +77,16 @@ func TestBasic(t *testing.T) {
 		cluster.Close()
 	}
 	expecteTenantCalls := 1
-	assert.Equal(t, expecteTenantCalls, cheTenantCalls, "Number of time Tenant server called was incorrect, want:%d, got:%d", expecteTenantCalls, cheTenantCalls)
+	assert.Equal(t, expecteTenantCalls, cheCtx.tenantCallCount, "Number of time Tenant server called was incorrect, want:%d, got:%d", expecteTenantCalls, cheCtx.tenantCallCount)
 }
 
-func createServer(handle func(http.ResponseWriter, *http.Request)) *httptest.Server {
+func (t testCheCtx) createServer(handle func(http.ResponseWriter, *http.Request)) *httptest.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handle)
 	return httptest.NewServer(mux)
 }
 
-func serveAuthRequest(rw http.ResponseWriter, req *http.Request) {
+func (t testCheCtx) serveAuthRequest(rw http.ResponseWriter, req *http.Request) {
 	var res string
 	if strings.HasSuffix(req.URL.Path, "/token") && req.Method == "POST" {
 		res = `{
@@ -100,8 +104,8 @@ func serveAuthRequest(rw http.ResponseWriter, req *http.Request) {
 	rw.Write([]byte(res))
 }
 
-func serverTenantRequest(rw http.ResponseWriter, req *http.Request) {
-	cheTenantCalls++
+func (t testCheCtx) serveTenantRequest(rw http.ResponseWriter, req *http.Request) {
+	cheCtx.tenantCallCount++
 	var res string
 	if strings.HasSuffix(req.URL.Path, "/tenants/john") {
 		res = `{
@@ -121,7 +125,7 @@ func serverTenantRequest(rw http.ResponseWriter, req *http.Request) {
 	rw.Write([]byte(res))
 }
 
-func serverClusterReqeust(rw http.ResponseWriter, req *http.Request) {
+func (t testCheCtx) serveClusterReqeust(rw http.ResponseWriter, req *http.Request) {
 	res := ""
 	if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/john-preview-che/serviceaccounts/che") {
 		res = `{
@@ -184,20 +188,20 @@ func serverClusterReqeust(rw http.ResponseWriter, req *http.Request) {
 	rw.Write([]byte(res))
 }
 
-func serverOSIORequest(osio *OSIOAuth) func(http.ResponseWriter, *http.Request) {
+func (t testCheCtx) serverOSIORequest(osio *OSIOAuth) func(http.ResponseWriter, *http.Request) {
 	return func(rw http.ResponseWriter, req *http.Request) {
-		osio.ServeHTTP(rw, req, varifyHandler)
+		osio.ServeHTTP(rw, req, cheCtx.varifyHandler)
 	}
 }
 
-func varifyHandler(rw http.ResponseWriter, req *http.Request) {
-	expectedTarget := cheDataTables[currCheTestInd].expectedTarget
+func (t testCheCtx) varifyHandler(rw http.ResponseWriter, req *http.Request) {
+	expectedTarget := cheCtx.tables[cheCtx.currInd].expectedTarget
 	actualTarget := req.Header.Get("Target")
 	if !strings.HasSuffix(actualTarget, expectedTarget) {
 		rw.Header().Set("err", fmt.Sprintf("Target was incorrect, want:%s, got:%s", expectedTarget, actualTarget))
 		return
 	}
-	expectedToken := cheDataTables[currCheTestInd].expectedToken
+	expectedToken := cheCtx.tables[cheCtx.currInd].expectedToken
 	actualToken := req.Header.Get(Authorization)
 	if !strings.HasSuffix(actualToken, expectedToken) {
 		rw.Header().Set("err", fmt.Sprintf("Token was incorrect, want:%s, got:%s", expectedToken, actualToken))
@@ -205,7 +209,7 @@ func varifyHandler(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func startServer(url string, handler func(w http.ResponseWriter, r *http.Request)) (ts *httptest.Server) {
+func (t testCheCtx) startServer(url string, handler func(w http.ResponseWriter, r *http.Request)) (ts *httptest.Server) {
 	if listener, err := net.Listen("tcp", url); err != nil {
 		panic(err)
 	} else {

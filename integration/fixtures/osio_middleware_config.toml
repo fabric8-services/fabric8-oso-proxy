@@ -21,17 +21,17 @@ watch = false
   [Backends.backend1]
     [Backends.backend1.Servers]
       [Backends.backend1.Servers.server1]
-        URL = "http://127.0.0.1:8081/"
+        URL = "http://127.0.0.1:8081"
         Weight = 0
   [Backends.backend2]
     [Backends.backend2.Servers]
       [Backends.backend2.Servers.server1]
-        URL = "http://127.0.0.1:8082/"
+        URL = "http://127.0.0.1:8082"
         Weight = 0
   [Backends.default]
     [Backends.default.Servers]
       [Backends.default.Servers.server1]
-        URL = "http://127.0.0.1:8081/"
+        URL = "http://127.0.0.1:8081"
         Weight = 0
 
 [Frontends]
@@ -42,7 +42,7 @@ watch = false
     Priority = 0
     [Frontends.default.Routes]
       [Frontends.default.Routes.test_1]
-        Rule = "HeadersRegexp:Target,default"
+        Rule = "Headers:Target,default"
   [Frontends.frontend1]
     Backend = "backend1"
     PassHostHeader = false
@@ -50,7 +50,7 @@ watch = false
     Priority = 0
     [Frontends.frontend1.Routes]
       [Frontends.frontend1.Routes.test_1]
-        Rule = "HeadersRegexp:Target,http://127.0.0.1:8081/"
+        Rule = "Headers:Target,http://127.0.0.1:8081"
   [Frontends.frontend2]
     Backend = "backend2"
     PassHostHeader = false
@@ -58,4 +58,4 @@ watch = false
     Priority = 0
     [Frontends.frontend2.Routes]
       [Frontends.frontend2.Routes.test_1]
-        Rule = "HeadersRegexp:Target,http://127.0.0.1:8082/"
+        Rule = "Headers:Target,http://127.0.0.1:8082"
