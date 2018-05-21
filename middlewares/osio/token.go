@@ -51,7 +51,7 @@ func CreateSrvAccTokenLocator(authBaseURL, srvAccID, srvAccSecret string) SrvAcc
 		if saToken != "" {
 			return saToken, nil
 		}
-		res, err := client.CallTokenAPI(authBaseURL+"/token", tokenReq)
+		res, err := client.GetToken(authBaseURL+"/token", tokenReq)
 		if err != nil {
 			return "", err
 		}

@@ -11,9 +11,6 @@ checkNewVersion = false
 [api]
 entryPoint = "traefik"
 
-[traefiklog]
-filepath = "traefik.log"
-
 [file]
 watch = false
 

@@ -25,11 +25,11 @@ func (fp *testProvider) fetchToken() error {
 type testClient struct {
 }
 
-func (fc *testClient) CallTokenAPI(tokenAPI string, tokenReq *TokenRequest) (*TokenResponse, error) {
+func (fc *testClient) GetToken(tokenAPI string, tokenReq *TokenRequest) (*TokenResponse, error) {
 	return &TokenResponse{"1111", "bearer"}, nil
 }
 
-func (fc *testClient) CallClusterAPI(clusterAPIURL string, tokenResp *TokenResponse) (*clusterResponse, error) {
+func (fc *testClient) GetClusters(clusterAPIURL string, tokenResp *TokenResponse) (*clusterResponse, error) {
 	return &clusterResponse{}, nil
 }
 

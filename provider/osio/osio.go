@@ -27,8 +27,8 @@ type Provider struct {
 	RefreshSeconds       int    `description:"Polling interval (in seconds)" export:"true"`
 	ServiceAccountID     string `description:"Service Account ID" export:"true"`
 	ServiceAccountSecret string `description:"Service Account Secret" export:"true"`
-	TokenAPI             string `description:"Auth token API" export:"true"`
-	ClusterAPI           string `description:"Cluster data API" export:"true"`
+	TokenURL             string `description:"Auth Token URL" export:"true"`
+	ClustersURL          string `description:"Clusters details URL" export:"true"`
 
 	client            Client
 	tokenResp         *TokenResponse
@@ -121,7 +121,7 @@ func (p *Provider) fetchToken() error {
 		return nil
 	}
 	tokenReq := &TokenRequest{GrantType: "client_credentials", ClientID: p.ServiceAccountID, ClientSecret: p.ServiceAccountSecret}
-	tokenResp, err := p.client.CallTokenAPI(p.TokenAPI, tokenReq)
+	tokenResp, err := p.client.GetToken(p.TokenURL, tokenReq)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func (p *Provider) fetchToken() error {
 }
 
 func (p *Provider) loadConfig() (*types.Configuration, error) {
-	clusterResponse, err := p.client.CallClusterAPI(p.ClusterAPI, p.tokenResp)
+	clusterResponse, err := p.client.GetClusters(p.ClustersURL, p.tokenResp)
 	if err != nil {
 		return nil, err
 	}
