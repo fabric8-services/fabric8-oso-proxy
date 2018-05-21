@@ -18,34 +18,40 @@ type testRedirectCtx struct {
 	authCallCount    int
 	tenantCallCount  int
 	nextHandlerCount int
+	currInd          int
 }
 
 type testRedirectData struct {
 	inputPath    string
 	osioToken    string
-	expectedBody string
+	expectedHost string
+	expectedURL  string
 }
 
 var redirectCtx = testRedirectCtx{table: []testRedirectData{
 	{
 		"/console/project/john-preview",
 		"1000",
-		"loc=localhost:9090/console/project/john-preview",
+		"localhost:9090",
+		"/console/project/john-preview",
 	},
 	{
 		"/console/project/sara-preview",
 		"2000",
-		"loc=localhost:9091/console/project/sara-preview",
+		"localhost:9091",
+		"/console/project/sara-preview",
 	},
 	{
 		"/logs/project/john-preview?tab=logs",
 		"1000",
-		"loc=localhost:9090/console/project/john-preview?tab=logs",
+		"localhost:9090",
+		"/console/project/john-preview?tab=logs",
 	},
 	{
 		"/logs/project/sara-preview",
 		"2000",
-		"loc=localhost:9091/console/project/sara-preview",
+		"localhost:9091",
+		"/console/project/sara-preview",
 	},
 }}
 
@@ -72,7 +78,8 @@ func TestRedirect(t *testing.T) {
 	osoServer2 := redirectCtx.createServerAtPort(9091, redirectCtx.serveOSORequest)
 	defer osoServer2.Close()
 
-	for _, table := range redirectCtx.table {
+	for ind, table := range redirectCtx.table {
+		redirectCtx.currInd = ind
 		currReqPath := table.inputPath
 		currOsioToken := table.osioToken
 
@@ -86,7 +93,7 @@ func TestRedirect(t *testing.T) {
 		body, err := ioutil.ReadAll(res.Body)
 		assert.Nil(t, err)
 		actualBody := string(body)
-		assert.Equal(t, table.expectedBody, actualBody)
+		assert.Empty(t, actualBody, actualBody)
 	}
 
 	expecteTenantCalls := 2
@@ -170,11 +177,23 @@ func (t testRedirectCtx) serveOSIORequest(osio *OSIOAuth) func(http.ResponseWrit
 }
 
 func (t testRedirectCtx) serveOSORequest(rw http.ResponseWriter, req *http.Request) {
-	loc := "loc=" + req.Host + req.URL.Path
-	if req.URL.RawQuery != "" {
-		loc = loc + "?" + req.URL.RawQuery
+	expectedHost := redirectCtx.table[redirectCtx.currInd].expectedHost
+	actualHost := req.Host
+	if expectedHost != actualHost {
+		err := fmt.Sprintf("Host was incorrect, want:%s, got:%s", expectedHost, actualHost)
+		rw.Write([]byte(err))
+		return
 	}
-	rw.Write([]byte(loc))
+	expectedURL := redirectCtx.table[redirectCtx.currInd].expectedURL
+	actualURL := req.URL.Path
+	if req.URL.RawQuery != "" {
+		actualURL = actualURL + "?" + req.URL.RawQuery
+	}
+	if expectedURL != actualURL {
+		err := fmt.Sprintf("URL was incorrect, want:%s, got:%s", expectedURL, actualURL)
+		rw.Write([]byte(err))
+		return
+	}
 }
 
 func nopHandler(rw http.ResponseWriter, req *http.Request) {

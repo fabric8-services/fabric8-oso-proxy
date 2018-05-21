@@ -148,16 +148,22 @@ func (p *Provider) loadRules(clusterResp *clusterResponse) *types.Configuration 
 
 	defaultBackendExist := false
 	for ind, cluster := range clusterResp.Clusters {
-		if p.defaultBackendURL != "" && p.defaultBackendURL == cluster.APIURL {
+		if p.defaultBackendURL != "" && p.defaultBackendURL == getDefaultURL(cluster) {
 			defaultBackendExist = true
 		}
 		configInd := fmt.Sprintf("%d", ind+1)
-		config.Frontends["frontend"+configInd] = createFrontend(cluster.APIURL, "backend"+configInd)
-		config.Backends["backend"+configInd] = createBackend(cluster.APIURL)
+		if cluster.APIURL != "" {
+			config.Frontends["api"+configInd] = createFrontend(cluster.APIURL, "api"+configInd)
+			config.Backends["api"+configInd] = createBackend(cluster.APIURL)
+		}
+		if cluster.MetricsURL != "" {
+			config.Frontends["metrics"+configInd] = createFrontend(cluster.MetricsURL, "metrics"+configInd)
+			config.Backends["metrics"+configInd] = createBackend(cluster.MetricsURL)
+		}
 	}
 	if !defaultBackendExist {
 		if len(clusterResp.Clusters) > 0 {
-			p.defaultBackendURL = clusterResp.Clusters[0].APIURL
+			p.defaultBackendURL = getDefaultURL(clusterResp.Clusters[0])
 		}
 	}
 	if p.defaultBackendURL != "" {
@@ -184,4 +190,8 @@ func createBackend(clusterURL string) *types.Backend {
 
 func normalizeURL(url string) string {
 	return strings.TrimSuffix(url, "/")
+}
+
+func getDefaultURL(cluster clusterData) string {
+	return cluster.APIURL
 }

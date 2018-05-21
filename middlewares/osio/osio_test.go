@@ -88,9 +88,9 @@ var mwCtx = testMiddlewareCtx{tables: []testMiddlewareData{
 func TestMiddleware(t *testing.T) {
 	os.Setenv("AUTH_TOKEN_KEY", "foo")
 
-	tenantServer := createServer2(serveTenantRequest2)
+	tenantServer := mwCtx.createServer(mwCtx.serveTenantRequest)
 	defer tenantServer.Close()
-	authServer := createServer2(serverAuthRequest2)
+	authServer := mwCtx.createServer(mwCtx.serverAuthRequest)
 	defer authServer.Close()
 
 	tenantURL := "http://" + tenantServer.Listener.Addr().String() + "/"
@@ -99,7 +99,7 @@ func TestMiddleware(t *testing.T) {
 	srvAccSecret := "secret"
 
 	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret)
-	osioServer := createServer2(serverOSIORequest2(osio))
+	osioServer := mwCtx.createServer(mwCtx.serverOSIORequest(osio))
 	osioURL := osioServer.Listener.Addr().String()
 
 	for ind, table := range mwCtx.tables {
@@ -122,13 +122,13 @@ func TestMiddleware(t *testing.T) {
 	assert.Equal(t, expectedAuthCalls, mwCtx.authCallCount, "Number of time Auth server called was incorrect, want:%d, got:%d", expectedAuthCalls, mwCtx.authCallCount)
 }
 
-func createServer2(handle func(http.ResponseWriter, *http.Request)) *httptest.Server {
+func (t testMiddlewareCtx) createServer(handle func(http.ResponseWriter, *http.Request)) *httptest.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handle)
 	return httptest.NewServer(mux)
 }
 
-func serveTenantRequest2(rw http.ResponseWriter, req *http.Request) {
+func (t testMiddlewareCtx) serveTenantRequest(rw http.ResponseWriter, req *http.Request) {
 	mwCtx.tenantCallCount++
 	res := `{
 		"data": {
@@ -146,7 +146,7 @@ func serveTenantRequest2(rw http.ResponseWriter, req *http.Request) {
 	rw.Write([]byte(res))
 }
 
-func serverAuthRequest2(rw http.ResponseWriter, req *http.Request) {
+func (t testMiddlewareCtx) serverAuthRequest(rw http.ResponseWriter, req *http.Request) {
 	mwCtx.authCallCount++
 	token := "1001"
 	if strings.HasSuffix(req.Header.Get(Authorization), "1000") {
@@ -158,13 +158,13 @@ func serverAuthRequest2(rw http.ResponseWriter, req *http.Request) {
 	rw.Write([]byte(res))
 }
 
-func serverOSIORequest2(osio *OSIOAuth) func(http.ResponseWriter, *http.Request) {
+func (t testMiddlewareCtx) serverOSIORequest(osio *OSIOAuth) func(http.ResponseWriter, *http.Request) {
 	return func(rw http.ResponseWriter, req *http.Request) {
-		osio.ServeHTTP(rw, req, varifyHandler2)
+		osio.ServeHTTP(rw, req, mwCtx.varifyHandler)
 	}
 }
 
-func varifyHandler2(rw http.ResponseWriter, req *http.Request) {
+func (t testMiddlewareCtx) varifyHandler(rw http.ResponseWriter, req *http.Request) {
 	expectedTarget := mwCtx.tables[mwCtx.currInd].expectedTarget
 	actualTarget := req.Header.Get("Target")
 	if expectedTarget != actualTarget {

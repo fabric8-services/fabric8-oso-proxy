@@ -34,20 +34,36 @@ func StartServer(port int, handler func(w http.ResponseWriter, r *http.Request))
 func ServeTenantRequest(rw http.ResponseWriter, req *http.Request) {
 	authHeader := req.Header.Get("Authorization")
 
-	host := ""
+	metricsHost := ""
+	apiHost := ""
 	switch {
 	case strings.HasSuffix(authHeader, "1111"):
-		host = "http://127.0.0.1:8081"
+		metricsHost = "http://127.0.0.1:7071"
+		apiHost = "http://127.0.0.1:8081"
 	case strings.HasSuffix(authHeader, "2222"):
-		host = "http://127.0.0.1:8082"
+		metricsHost = "http://127.0.0.1:7072"
+		apiHost = "http://127.0.0.1:8082"
 	case strings.HasSuffix(authHeader, "3333"):
-		host = "http://127.0.0.1:8083" // :8083 is not present in toml file
+		metricsHost = "http://127.0.0.1:7073"
+		apiHost = "http://127.0.0.1:8083" // :8083 is not present in toml file
 	case strings.HasSuffix(authHeader, "4444"):
 		rw.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	res := "{\"data\":{\"attributes\":{\"namespaces\":[{\"cluster-url\":\"" + host + "/\"}]}}}"
+	res := fmt.Sprintf(`{
+		"data": {
+			"attributes": {
+				"namespaces": [
+					{
+						"name": "myuser-preview-stage",
+						"cluster-metrics-url": "%s",
+						"cluster-url": "%s"
+					}
+				]
+			}
+		}
+	}`, metricsHost, apiHost)
 	rw.Write([]byte(res))
 }
 
@@ -73,14 +89,14 @@ func TwoClusterData() string {
 				"api-url": "http://127.0.0.1:8081/",
 				"app-dns": "8a09.starter-us-east-2.openshiftapps.com",
 				"console-url": "https://console.starter-us-east-2.openshift.com/console/",
-				"metrics-url": "https://metrics.starter-us-east-2.openshift.com/",
+				"metrics-url": "http://127.0.0.1:7071/",
 				"name": "us-east-2"
 			},
 			{
 				"api-url": "http://127.0.0.1:8082/",
 				"app-dns": "b542.starter-us-east-2a.openshiftapps.com",
 				"console-url": "https://console.starter-us-east-2a.openshift.com/console/",
-				"metrics-url": "https://metrics.starter-us-east-2a.openshift.com/",
+				"metrics-url": "http://127.0.0.1:7072/",
 				"name": "us-east-2a"
 			}
 		]
@@ -96,7 +112,7 @@ func OneClusterData() string {
 				"api-url": "http://localhost:8081/",
 				"app-dns": "8a09.starter-us-east-2.openshiftapps.com",
 				"console-url": "https://console.starter-us-east-2.openshift.com/console/",
-				"metrics-url": "https://metrics.starter-us-east-2.openshift.com/",
+				"metrics-url": "http://127.0.0.1:7071/",
 				"name": "us-east-2"
 			}
 		]
