@@ -9,16 +9,11 @@ import (
 	"strings"
 
 	"github.com/containous/traefik/log"
+	jwt "github.com/dgrijalva/jwt-go"
 )
 
 const (
 	Authorization = "Authorization"
-	impersonate   = "impersonate"
-)
-
-const (
-	api = "api"
-	che = "che"
 )
 
 type TenantLocator interface {
@@ -38,6 +33,8 @@ type SecretLocator interface {
 	GetSecret(clusterUrl, clusterToken, nsName, secretName string) (string, error)
 }
 
+type TokenConvertor func(string) (*jwt.Token, error)
+
 type cacheData struct {
 	Token    string
 	Location string
@@ -48,6 +45,7 @@ type OSIOAuth struct {
 	RequestTenantToken    TenantTokenLocator
 	RequestSrvAccToken    SrvAccTokenLocator
 	RequestSecretLocation SecretLocator
+	ConvertToken          TokenConvertor
 	cache                 *Cache
 }
 
@@ -82,7 +80,8 @@ func NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret string) *OSIOAuth {
 		RequestTenantToken:    CreateTenantTokenLocator(http.DefaultClient, authURL),
 		RequestSrvAccToken:    CreateSrvAccTokenLocator(authURL, srvAccID, srvAccSecret),
 		RequestSecretLocation: CreateSecretLocator(http.DefaultClient),
-		cache: &Cache{},
+		ConvertToken:          CreateTokenConvertor(http.DefaultClient, authURL),
+		cache:                 &Cache{},
 	}
 }
 
@@ -156,6 +155,26 @@ func (a *OSIOAuth) resolveByID(userID, token string) (cacheData, error) {
 	return cacheData{}, err
 }
 
+func (a *OSIOAuth) IsServiceAccount(token string) (bool, error) {
+	jwtToken, err := a.ConvertToken(token)
+	if err != nil {
+		return false, err
+	}
+	if jwtToken == nil {
+		return false, fmt.Errorf("Not valid JWT token")
+	}
+	accountName := jwtToken.Claims.(jwt.MapClaims)["service_accountname"]
+	if accountName == nil {
+		return false, nil // NOT a SA token
+	}
+	_, isString := accountName.(string)
+	if isString {
+		return true, nil
+	} else {
+		return false, fmt.Errorf("Not valid JWT token")
+	}
+}
+
 func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 
 	if a.RequestTenantLocation != nil {
@@ -168,10 +187,16 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				return
 			}
 
+			isSerivce, err := a.IsServiceAccount(token)
+			if err != nil {
+				log.Errorf("Invalid token, %v", err)
+				rw.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
 			var cached cacheData
-			service := getService(r)
-			if service == che {
-				userID := r.Header.Get(impersonate)
+			if isSerivce {
+				userID := r.URL.Query().Get("identity_id")
 				cached, err = a.resolveByID(userID, token)
 			} else {
 				cached, err = a.resolveByToken(token)
@@ -212,19 +237,6 @@ func extractToken(auth string) (string, error) {
 		return "", fmt.Errorf("Invalid auth")
 	}
 	return auths[len(auths)-1], nil
-}
-
-func getService(req *http.Request) string {
-	reqPath := req.URL.Path
-	switch {
-	case strings.HasPrefix(reqPath, "/"+api):
-		if req.Header.Get(impersonate) != "" {
-			return che
-		}
-		return api
-	default:
-		return api
-	}
 }
 
 func cacheKey(plainKey string) string {

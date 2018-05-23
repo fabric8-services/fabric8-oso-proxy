@@ -64,7 +64,7 @@ func TestBasic(t *testing.T) {
 
 		req, _ := http.NewRequest("GET", "http://"+osioURL+currReqPath, nil)
 		req.Header.Set("Authorization", "Bearer "+cheSAToken)
-		req.Header.Set(impersonate, table.userID)
+		req.URL.Query().Set("identity_id", table.userID)
 		res, _ := http.DefaultClient.Do(req)
 		assert.NotNil(t, res)
 		err := res.Header.Get("err")
