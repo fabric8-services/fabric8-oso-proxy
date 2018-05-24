@@ -23,7 +23,7 @@ type JSONKeys struct {
 	Keys []interface{} `json:"keys"`
 }
 
-func CreateTokenConvertor(client *http.Client, authURL string) TokenConvertor {
+func CreateSrvAccTokenChecker(client *http.Client, authURL string) SrvAccTokenChecker {
 	var publicKeysMap map[string]*rsa.PublicKey
 
 	keyFunc := func(token *jwt.Token) (interface{}, error) {
@@ -40,18 +40,31 @@ func CreateTokenConvertor(client *http.Client, authURL string) TokenConvertor {
 		return key, nil
 	}
 
-	return func(token string) (*jwt.Token, error) {
+	return func(token string) (bool, error) {
 		if publicKeysMap == nil {
 			remoteKeys, err := fetchKeys(client, authURL)
 			if err != nil {
-				return nil, err
+				return false, err
 			}
 			publicKeysMap = make(map[string]*rsa.PublicKey)
 			for _, remoteKey := range remoteKeys {
 				publicKeysMap[remoteKey.KeyID] = remoteKey.Key
 			}
 		}
-		return jwt.Parse(token, keyFunc)
+		jwtToken, err := jwt.Parse(token, keyFunc)
+		if err != nil {
+			return false, err
+		}
+		accountName := jwtToken.Claims.(jwt.MapClaims)["service_accountname"]
+		if accountName == nil {
+			return false, nil // NOT a SA token
+		}
+		_, isString := accountName.(string)
+		if isString {
+			return true, nil
+		} else {
+			return false, fmt.Errorf("Not valid JWT token")
+		}
 	}
 }
 

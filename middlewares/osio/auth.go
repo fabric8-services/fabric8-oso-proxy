@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/containous/traefik/log"
-	jwt "github.com/dgrijalva/jwt-go"
 )
 
 const (
@@ -33,7 +32,7 @@ type SecretLocator interface {
 	GetSecret(clusterUrl, clusterToken, nsName, secretName string) (string, error)
 }
 
-type TokenConvertor func(string) (*jwt.Token, error)
+type SrvAccTokenChecker func(string) (bool, error)
 
 type cacheData struct {
 	Token    string
@@ -45,7 +44,7 @@ type OSIOAuth struct {
 	RequestTenantToken    TenantTokenLocator
 	RequestSrvAccToken    SrvAccTokenLocator
 	RequestSecretLocation SecretLocator
-	ConvertToken          TokenConvertor
+	CheckSrvAccToken      SrvAccTokenChecker
 	cache                 *Cache
 }
 
@@ -80,7 +79,7 @@ func NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret string) *OSIOAuth {
 		RequestTenantToken:    CreateTenantTokenLocator(http.DefaultClient, authURL),
 		RequestSrvAccToken:    CreateSrvAccTokenLocator(authURL, srvAccID, srvAccSecret),
 		RequestSecretLocation: CreateSecretLocator(http.DefaultClient),
-		ConvertToken:          CreateTokenConvertor(http.DefaultClient, authURL),
+		CheckSrvAccToken:      CreateSrvAccTokenChecker(http.DefaultClient, authURL),
 		cache:                 &Cache{},
 	}
 }
@@ -155,26 +154,6 @@ func (a *OSIOAuth) resolveByID(userID, token string) (cacheData, error) {
 	return cacheData{}, err
 }
 
-func (a *OSIOAuth) IsServiceAccount(token string) (bool, error) {
-	jwtToken, err := a.ConvertToken(token)
-	if err != nil {
-		return false, err
-	}
-	if jwtToken == nil {
-		return false, fmt.Errorf("Not valid JWT token")
-	}
-	accountName := jwtToken.Claims.(jwt.MapClaims)["service_accountname"]
-	if accountName == nil {
-		return false, nil // NOT a SA token
-	}
-	_, isString := accountName.(string)
-	if isString {
-		return true, nil
-	} else {
-		return false, fmt.Errorf("Not valid JWT token")
-	}
-}
-
 func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 
 	if a.RequestTenantLocation != nil {
@@ -187,7 +166,7 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				return
 			}
 
-			isSerivce, err := a.IsServiceAccount(token)
+			isSerivce, err := a.CheckSrvAccToken(token)
 			if err != nil {
 				log.Errorf("Invalid token, %v", err)
 				rw.WriteHeader(http.StatusUnauthorized)

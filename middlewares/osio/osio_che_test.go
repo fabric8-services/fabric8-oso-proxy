@@ -51,6 +51,7 @@ func TestBasic(t *testing.T) {
 	srvAccSecret := "secret"
 
 	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret)
+	osio.CheckSrvAccToken = testSrvAccToken
 	osioServer := createServer(serverOSIORequest(osio))
 	defer osioServer.Close()
 	osioURL := osioServer.Listener.Addr().String()
@@ -64,7 +65,9 @@ func TestBasic(t *testing.T) {
 
 		req, _ := http.NewRequest("GET", "http://"+osioURL+currReqPath, nil)
 		req.Header.Set("Authorization", "Bearer "+cheSAToken)
-		req.URL.Query().Set("identity_id", table.userID)
+		q := req.URL.Query()
+		q.Add("identity_id", table.userID)
+		req.URL.RawQuery = q.Encode()
 		res, _ := http.DefaultClient.Do(req)
 		assert.NotNil(t, res)
 		err := res.Header.Get("err")
@@ -216,4 +219,8 @@ func startServer(url string, handler func(w http.ResponseWriter, r *http.Request
 		ts.Start()
 	}
 	return
+}
+
+func testSrvAccToken(token string) (bool, error) {
+	return true, nil
 }
