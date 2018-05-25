@@ -8,22 +8,26 @@ import (
 	"net/http"
 )
 
-type client interface {
-	callTokenAPI(tokenAPI string, tokenReq *tokenRequest) (*tokenResponse, error)
-	callClusterAPI(clusterAPIURL string, tokenResp *tokenResponse) (*clusterResponse, error)
+type Client interface {
+	CallTokenAPI(tokenAPI string, tokenReq *TokenRequest) (*TokenResponse, error)
+	CallClusterAPI(clusterAPIURL string, tokenResp *TokenResponse) (*clusterResponse, error)
+}
+
+func NewClient() Client {
+	return &authClient{Client: http.DefaultClient}
 }
 
 type authClient struct {
 	*http.Client
 }
 
-type tokenRequest struct {
+type TokenRequest struct {
 	GrantType    string `json:"grant_type"`
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
 }
 
-type tokenResponse struct {
+type TokenResponse struct {
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
 }
@@ -41,7 +45,7 @@ type clusterResponse struct {
 	Clusters []clusterData `json:"data"`
 }
 
-func (client *authClient) callTokenAPI(tokenAPI string, tokenReq *tokenRequest) (*tokenResponse, error) {
+func (client *authClient) CallTokenAPI(tokenAPI string, tokenReq *TokenRequest) (*TokenResponse, error) {
 	reqBody := new(bytes.Buffer)
 	err := json.NewEncoder(reqBody).Encode(tokenReq)
 	if err != nil {
@@ -60,7 +64,7 @@ func (client *authClient) callTokenAPI(tokenAPI string, tokenReq *tokenRequest) 
 	}
 
 	defer resp.Body.Close()
-	var tokenResp *tokenResponse
+	var tokenResp *TokenResponse
 	err = json.NewDecoder(resp.Body).Decode(&tokenResp)
 	if err != nil {
 		return nil, err
@@ -68,7 +72,7 @@ func (client *authClient) callTokenAPI(tokenAPI string, tokenReq *tokenRequest) 
 	return tokenResp, nil
 }
 
-func (client *authClient) callClusterAPI(clusterAPIURL string, tokenResp *tokenResponse) (*clusterResponse, error) {
+func (client *authClient) CallClusterAPI(clusterAPIURL string, tokenResp *TokenResponse) (*clusterResponse, error) {
 	req, err := http.NewRequest(http.MethodGet, clusterAPIURL, nil)
 	if err != nil {
 		return nil, err

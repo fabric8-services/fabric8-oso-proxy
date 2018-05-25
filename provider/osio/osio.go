@@ -29,8 +29,8 @@ type Provider struct {
 	TokenAPI             string `description:"Auth token API" export:"true"`
 	ClusterAPI           string `description:"Cluster data API" export:"true"`
 
-	client            client
-	tokenResp         *tokenResponse
+	client            Client
+	tokenResp         *TokenResponse
 	defaultBackendURL string
 }
 
@@ -119,8 +119,8 @@ func (p *Provider) fetchToken() error {
 	if p.tokenResp != nil {
 		return nil
 	}
-	tokenReq := &tokenRequest{GrantType: "client_credentials", ClientID: p.ServiceAccountID, ClientSecret: p.ServiceAccountSecret}
-	tokenResp, err := p.client.callTokenAPI(p.TokenAPI, tokenReq)
+	tokenReq := &TokenRequest{GrantType: "client_credentials", ClientID: p.ServiceAccountID, ClientSecret: p.ServiceAccountSecret}
+	tokenResp, err := p.client.CallTokenAPI(p.TokenAPI, tokenReq)
 	if err != nil {
 		return err
 	}
@@ -129,7 +129,7 @@ func (p *Provider) fetchToken() error {
 }
 
 func (p *Provider) loadConfig() (*types.Configuration, error) {
-	clusterResponse, err := p.client.callClusterAPI(p.ClusterAPI, p.tokenResp)
+	clusterResponse, err := p.client.CallClusterAPI(p.ClusterAPI, p.tokenResp)
 	if err != nil {
 		return nil, err
 	}
