@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,7 +23,7 @@ type secretResponse struct {
 }
 
 type secretData struct {
-	Token string `json:"token"`
+	Token string `json:"token"` // Base64 Encoded
 }
 
 type secretLocator struct {
@@ -91,5 +92,6 @@ func getSecret(resp secretResponse) (string, error) {
 	if resp.SecretData.Token == "" {
 		return "", errors.New("unable to locate secret")
 	}
-	return resp.SecretData.Token, nil
+	b, err := base64.StdEncoding.DecodeString(resp.SecretData.Token)
+	return string(b), err
 }
