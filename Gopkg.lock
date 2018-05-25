@@ -1103,7 +1103,14 @@
   packages = [
     "bcrypt",
     "blowfish",
+    "cast5",
     "ocsp",
+    "openpgp",
+    "openpgp/armor",
+    "openpgp/elgamal",
+    "openpgp/errors",
+    "openpgp/packet",
+    "openpgp/s2k",
     "pbkdf2",
     "scrypt"
   ]
@@ -1229,6 +1236,7 @@
   name = "gopkg.in/fsnotify.v1"
   packages = ["."]
   revision = "629574ca2a5df945712d3079857300b5e4da0236"
+  source = "github.com/fsnotify/fsnotify"
   version = "v1.4.2"
 
 [[projects]]
@@ -1387,6 +1395,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "bd1e7a1b07d95ff85c675468bbfc4bc7a91c39cf1feceeb58dfcdba9592180a5"
+  inputs-digest = "e15b4f86ac54c60fa4257cb9bb898d0c98ad6b138a09112d139be70c322b1b92"
   solver-name = "gps-cdcl"
   solver-version = 1

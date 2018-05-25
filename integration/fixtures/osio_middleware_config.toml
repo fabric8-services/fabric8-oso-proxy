@@ -1,4 +1,4 @@
-logLevel = "ERROR"
+logLevel = "DEBUG"
 defaultEntryPoints = ["http"]
 [entryPoints]
   [entryPoints.http]
@@ -10,6 +10,9 @@ checkNewVersion = false
 
 [api]
 entryPoint = "traefik"
+
+[traefiklog]
+filepath = "traefik.log"
 
 [file]
 watch = false

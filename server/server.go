@@ -140,7 +140,7 @@ func NewServer(globalConfiguration configuration.GlobalConfiguration) *Server {
 	}
 
 	// TODO: Expose via config?
-	fmt.Println("Initialize OSIOAuth")
+	log.Info("Initialize OSIO Auth middleware")
 	server.osioMiddleware = osio.NewPreConfiguredOSIOAuth()
 	return server
 }

@@ -1,14 +1,25 @@
 package middlewares
 
 import (
-	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestAuthShouldX(t *testing.T) {
-	witURL := "https://api.prod-preview.openshift.io/api"
-	authURL := "https://auth.prod-preview.openshift.io/api"
+func TestExtracToken(t *testing.T) {
+	tables := []struct {
+		authHeader    string
+		expectedToken string
+	}{
+		{"Bear 1111", "1111"},
+		{"1111", "1111"},
+	}
 
-	a := NewOSIOAuth(witURL, authURL)
-	fmt.Println(a)
+	for _, table := range tables {
+		actualToken, err := extractToken(table.authHeader)
+		assert.Nil(t, err)
+		if actualToken != table.expectedToken {
+			t.Errorf("Incorrect token, want:%s, got:%s", table.expectedToken, actualToken)
+		}
+	}
 }

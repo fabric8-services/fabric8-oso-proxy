@@ -39,11 +39,11 @@ objects:
                 path: traefik.toml
         containers:
         - env:
-          - name: WIT_URL
+          - name: TENANT_URL
             valueFrom:
               configMapKeyRef:
                 name: f8osoproxy
-                key: wit.url
+                key: tenant.url
           - name: AUTH_URL
             valueFrom:
               configMapKeyRef:
@@ -59,6 +59,11 @@ objects:
               secretKeyRef:
                 name: f8osoproxy
                 key: service.account.secret
+          - name: AUTH_TOKEN_KEY
+            valueFrom:
+              secretKeyRef:
+                name: f8osoproxy
+                key: auth.token.key
           image: ${IMAGE}:${IMAGE_TAG}
           name: f8osoproxy
           imagePullPolicy: Always

@@ -32,7 +32,7 @@ func TestTokenServiceClient(t *testing.T) {
 				"http://"+server.Listener.Addr().String()+"/",
 			)
 
-			url, err := locator("xxxxx", "http://x.com")
+			url, err := locator.GetTokenWithUserToken("xxxxx", "http://x.com")
 			server.Close()
 
 			assert.Equal(t, test.url, url, "expected URL to be equal")

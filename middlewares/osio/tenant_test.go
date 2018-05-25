@@ -33,14 +33,14 @@ func TestTenantServiceClient(t *testing.T) {
 	for index, test := range tests {
 		t.Run(fmt.Sprintf("Scenario%v", index), func(t *testing.T) {
 			server := createTenantServer(test.function)
+			defer server.Close()
 			locator := CreateTenantLocator(
 				http.DefaultClient,
-				"http://"+server.Listener.Addr().String()+"/",
+				"http://"+server.Listener.Addr().String(),
 			)
 
-			url, err := locator("xxxxx")
-			server.Close()
-
+			ns, err := locator.GetTenant("xxxxx")
+			url := ns.ClusterURL
 			assert.Equal(t, test.url, url, "expected URL to be equal")
 			if test.err == nil {
 				assert.NoError(t, err, "expected no error")
@@ -53,7 +53,7 @@ func TestTenantServiceClient(t *testing.T) {
 
 func createTenantServer(handler func(rw http.ResponseWriter, r *http.Request)) *httptest.Server {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/user/services", handler)
+	mux.HandleFunc("/tenant", handler)
 	return httptest.NewServer(mux)
 }
 
