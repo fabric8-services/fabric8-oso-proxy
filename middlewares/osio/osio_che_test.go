@@ -179,7 +179,7 @@ func serverClusterRequest(rw http.ResponseWriter, req *http.Request) {
 			  "ca.crt": "xxxxx=",
 			  "namespace": "xxxxx==",
 			  "service-ca.crt": "xxxxx=",
-			  "token": "1000_che_secret"
+			  "token": "MTAwMF9jaGVfc2VjcmV0"
 			},
 			"type": "kubernetes.io/service-account-token"
 		  }`
