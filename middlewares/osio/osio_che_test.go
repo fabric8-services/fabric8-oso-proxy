@@ -23,13 +23,13 @@ var cheDataTables = []testCheData{
 	{
 		"/api",
 		"john",
-		"127.0.0.1:9091",
+		"127.0.0.1:9091/",
 		"1000_che_secret",
 	},
 	{
 		"/api",
 		"john",
-		"127.0.0.1:9091",
+		"127.0.0.1:9091/",
 		"1000_che_secret",
 	},
 }
@@ -58,7 +58,7 @@ func TestBasic(t *testing.T) {
 
 	for ind, table := range cheDataTables {
 		currCheTestInd = ind
-		cluster := startServer(table.expectedTarget, serverClusterReqeust)
+		cluster := startServer(table.expectedTarget, serverClusterRequest)
 
 		currReqPath := table.inputPath
 		cheSAToken := "1000_che_sa_token"
@@ -114,7 +114,7 @@ func serverTenantRequest(rw http.ResponseWriter, req *http.Request) {
 						{
 							"name": "john-preview-che",
 							"type": "che",
-							"cluster-url": "http://127.0.0.1:9091"
+							"cluster-url": "http://127.0.0.1:9091/"
 						}
 					]
 				}
@@ -124,7 +124,7 @@ func serverTenantRequest(rw http.ResponseWriter, req *http.Request) {
 	rw.Write([]byte(res))
 }
 
-func serverClusterReqeust(rw http.ResponseWriter, req *http.Request) {
+func serverClusterRequest(rw http.ResponseWriter, req *http.Request) {
 	res := ""
 	if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/john-preview-che/serviceaccounts/che") {
 		res = `{
@@ -179,7 +179,7 @@ func serverClusterReqeust(rw http.ResponseWriter, req *http.Request) {
 			  "ca.crt": "xxxxx=",
 			  "namespace": "xxxxx==",
 			  "service-ca.crt": "xxxxx=",
-			  "token": "1000_che_secret"
+			  "token": "MTAwMF9jaGVfc2VjcmV0"
 			},
 			"type": "kubernetes.io/service-account-token"
 		  }`
@@ -209,7 +209,7 @@ func varifyHandler(rw http.ResponseWriter, req *http.Request) {
 }
 
 func startServer(url string, handler func(w http.ResponseWriter, r *http.Request)) (ts *httptest.Server) {
-	if listener, err := net.Listen("tcp", url); err != nil {
+	if listener, err := net.Listen("tcp", strings.Replace(url, "/", "", -1)); err != nil {
 		panic(err)
 	} else {
 		ts = &httptest.Server{
