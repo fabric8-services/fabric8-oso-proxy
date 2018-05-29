@@ -39,11 +39,11 @@ objects:
                 path: traefik.toml
         containers:
         - env:
-          - name: WIT_URL
+          - name: TENANT_URL
             valueFrom:
               configMapKeyRef:
                 name: f8osoproxy
-                key: wit.url
+                key: tenant.url
           - name: AUTH_URL
             valueFrom:
               configMapKeyRef:

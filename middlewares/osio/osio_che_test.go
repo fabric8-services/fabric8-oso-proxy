@@ -55,20 +55,21 @@ func TestChe(t *testing.T) {
 	srvAccSecret := "secret"
 
 	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret)
+	osio.CheckSrvAccToken = testSrvAccToken
 	osioServer := cheCtx.createServer(cheCtx.serverOSIORequest(osio))
 	defer osioServer.Close()
 	osioURL := osioServer.Listener.Addr().String()
 
 	for ind, table := range cheCtx.tables {
 		cheCtx.currInd = ind
-		cluster := cheCtx.startServer(table.expectedTarget, cheCtx.serveClusterReqeust)
+		cluster := cheCtx.startServer(table.expectedTarget, cheCtx.serveClusterRequest)
 
 		currReqPath := table.inputPath
 		cheSAToken := "1000_che_sa_token"
 
 		req, _ := http.NewRequest("GET", "http://"+osioURL+currReqPath, nil)
-		req.Header.Set("Authorization", "Bearer "+cheSAToken)
-		req.Header.Set(impersonate, table.userID)
+		req.Header.Set(Authorization, "Bearer "+cheSAToken)
+		req.Header.Set(UserIDHeader, table.userID)
 		res, _ := http.DefaultClient.Do(req)
 		assert.NotNil(t, res)
 		err := res.Header.Get("err")
@@ -115,7 +116,7 @@ func (t testCheCtx) serveTenantRequest(rw http.ResponseWriter, req *http.Request
 						{
 							"name": "john-preview-che",
 							"type": "che",
-							"cluster-url": "http://127.0.0.1:9091"
+							"cluster-url": "http://127.0.0.1:9091/"
 						}
 					]
 				}
@@ -125,7 +126,7 @@ func (t testCheCtx) serveTenantRequest(rw http.ResponseWriter, req *http.Request
 	rw.Write([]byte(res))
 }
 
-func (t testCheCtx) serveClusterReqeust(rw http.ResponseWriter, req *http.Request) {
+func (t testCheCtx) serveClusterRequest(rw http.ResponseWriter, req *http.Request) {
 	res := ""
 	if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/john-preview-che/serviceaccounts/che") {
 		res = `{
@@ -180,7 +181,7 @@ func (t testCheCtx) serveClusterReqeust(rw http.ResponseWriter, req *http.Reques
 			  "ca.crt": "xxxxx=",
 			  "namespace": "xxxxx==",
 			  "service-ca.crt": "xxxxx=",
-			  "token": "1000_che_secret"
+			  "token": "MTAwMF9jaGVfc2VjcmV0"
 			},
 			"type": "kubernetes.io/service-account-token"
 		  }`
@@ -210,7 +211,7 @@ func (t testCheCtx) varifyHandler(rw http.ResponseWriter, req *http.Request) {
 }
 
 func (t testCheCtx) startServer(url string, handler func(w http.ResponseWriter, r *http.Request)) (ts *httptest.Server) {
-	if listener, err := net.Listen("tcp", url); err != nil {
+	if listener, err := net.Listen("tcp", strings.Replace(url, "/", "", -1)); err != nil {
 		panic(err)
 	} else {
 		ts = &httptest.Server{
@@ -220,4 +221,8 @@ func (t testCheCtx) startServer(url string, handler func(w http.ResponseWriter, 
 		ts.Start()
 	}
 	return
+}
+
+func testSrvAccToken(token string) (bool, error) {
+	return true, nil
 }

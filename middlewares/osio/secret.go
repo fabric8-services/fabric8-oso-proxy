@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,7 +22,7 @@ type secretResponse struct {
 }
 
 type secretData struct {
-	Token string `json:"token"`
+	Token string `json:"token"` // Base64 Encoded
 }
 
 type secretLocator struct {
@@ -34,7 +35,7 @@ func CreateSecretLocator(client *http.Client) SecretLocator {
 
 func (s *secretLocator) GetName(clusterURL, clusterToken, nsName, nsType string) (string, error) {
 	// https://api.starter-us-east-2a.openshift.com/api/v1/namespaces/john-preview-che/serviceaccounts/che
-	url := fmt.Sprintf("%s/api/v1/namespaces/%s/serviceaccounts/%s", clusterURL, nsName, nsType)
+	url := fmt.Sprintf("%sapi/v1/namespaces/%s/serviceaccounts/%s", clusterURL, nsName, nsType)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
@@ -56,7 +57,7 @@ func (s *secretLocator) GetName(clusterURL, clusterToken, nsName, nsType string)
 
 func (s *secretLocator) GetSecret(clusterUrl, clusterToken, nsName, secretName string) (string, error) {
 	// https://api.starter-us-east-2a.openshift.com/api/v1/namespaces/john-preview-che/secrets/che-token-xxxx
-	url := fmt.Sprintf("%s/api/v1/namespaces/%s/secrets/%s", clusterUrl, nsName, secretName)
+	url := fmt.Sprintf("%sapi/v1/namespaces/%s/secrets/%s", clusterUrl, nsName, secretName)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
@@ -89,5 +90,6 @@ func getSecret(resp secretResponse) (string, error) {
 	if resp.SecretData.Token == "" {
 		return "", errors.New("unable to locate secret")
 	}
-	return resp.SecretData.Token, nil
+	b, err := base64.StdEncoding.DecodeString(resp.SecretData.Token)
+	return string(b), err
 }

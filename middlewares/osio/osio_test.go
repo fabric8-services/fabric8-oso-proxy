@@ -99,6 +99,7 @@ func TestMiddleware(t *testing.T) {
 	srvAccSecret := "secret"
 
 	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret)
+	osio.CheckSrvAccToken = mwCtx.testSrvAccToken
 	osioServer := mwCtx.createServer(mwCtx.serverOSIORequest(osio))
 	osioURL := osioServer.Listener.Addr().String()
 
@@ -191,4 +192,8 @@ func (t testMiddlewareCtx) varifyHandler(rw http.ResponseWriter, req *http.Reque
 		rw.Header().Set("err", fmt.Sprintf("Path was incorrect, want:%s, got:%s", expectedPath, actualPath))
 		return
 	}
+}
+
+func (t testMiddlewareCtx) testSrvAccToken(token string) (bool, error) {
+	return false, nil
 }

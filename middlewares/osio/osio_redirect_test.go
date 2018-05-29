@@ -69,6 +69,7 @@ func TestRedirect(t *testing.T) {
 	srvAccSecret := "secret"
 
 	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret)
+	osio.CheckSrvAccToken = redirectCtx.testSrvAccToken
 	osioServer := redirectCtx.createServer(redirectCtx.serveOSIORequest(osio))
 	defer osioServer.Close()
 	osioURL := osioServer.Listener.Addr().String()
@@ -194,6 +195,10 @@ func (t testRedirectCtx) serveOSORequest(rw http.ResponseWriter, req *http.Reque
 		rw.Write([]byte(err))
 		return
 	}
+}
+
+func (t testRedirectCtx) testSrvAccToken(token string) (bool, error) {
+	return false, nil
 }
 
 func nopHandler(rw http.ResponseWriter, req *http.Request) {

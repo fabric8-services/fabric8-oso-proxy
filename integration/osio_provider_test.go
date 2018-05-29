@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/containous/traefik/integration/common"
 	"github.com/containous/traefik/integration/try"
 	"github.com/containous/traefik/log"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-check/check"
 	checker "github.com/vdemeester/shakers"
 )
@@ -54,7 +56,7 @@ func (s *OSIOProviderSuite) TestOSIOProvider(c *check.C) {
 
 		url := "http://127.0.0.1:8000/restall"
 		req, _ := http.NewRequest("GET", url, nil)
-		req.Header.Add("Authorization", "Bearer 2222")
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", common.TestTokenManager.ToTokenString(jwt.MapClaims{"sub": "2222"})))
 		res, _ := try.Response(req, 500*time.Millisecond)
 		log.Printf("url=%s, res.StatusCode=%d", url, res.StatusCode)
 
@@ -81,7 +83,7 @@ func (s *OSIOProviderSuite) TestOSIOProvider(c *check.C) {
 
 func makeRequest(c *check.C, url string, expectedStatusCode int) {
 	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Add("Authorization", "Bearer 2222")
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", common.TestTokenManager.ToTokenString(jwt.MapClaims{"sub": "2222"})))
 	res, _ := try.Response(req, 500*time.Millisecond)
 	log.Printf("url=%s, res.StatusCode=%d", url, res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, expectedStatusCode)

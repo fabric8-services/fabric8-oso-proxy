@@ -13,7 +13,7 @@ import (
 
 const (
 	Authorization = "Authorization"
-	impersonate   = "impersonate"
+	UserIDHeader  = "Impersonate-User"
 )
 
 const (
@@ -41,6 +41,8 @@ type SecretLocator interface {
 	GetSecret(clusterUrl, clusterToken, nsName, secretName string) (string, error)
 }
 
+type SrvAccTokenChecker func(string) (bool, error)
+
 type cacheData struct {
 	Token     string
 	Namespace namespace
@@ -51,6 +53,7 @@ type OSIOAuth struct {
 	RequestTenantToken    TenantTokenLocator
 	RequestSrvAccToken    SrvAccTokenLocator
 	RequestSecretLocation SecretLocator
+	CheckSrvAccToken      SrvAccTokenChecker
 	cache                 *Cache
 }
 
@@ -85,7 +88,8 @@ func NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret string) *OSIOAuth {
 		RequestTenantToken:    CreateTenantTokenLocator(http.DefaultClient, authURL),
 		RequestSrvAccToken:    CreateSrvAccTokenLocator(authURL, srvAccID, srvAccSecret),
 		RequestSecretLocation: CreateSecretLocator(http.DefaultClient),
-		cache: &Cache{},
+		CheckSrvAccToken:      CreateSrvAccTokenChecker(http.DefaultClient, authURL),
+		cache:                 &Cache{},
 	}
 }
 
@@ -169,10 +173,21 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				return
 			}
 
+			isSerivce, err := a.CheckSrvAccToken(token)
+			if err != nil {
+				log.Errorf("Invalid token, %v", err)
+				rw.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
 			var cached cacheData
-			service := getService(r)
-			if service == che {
-				userID := r.Header.Get(impersonate)
+			if isSerivce {
+				userID := r.Header.Get(UserIDHeader)
+				if userID == "" {
+					log.Errorf("%s header is missing", UserIDHeader)
+					rw.WriteHeader(http.StatusUnauthorized)
+					return
+				}
 				cached, err = a.resolveByID(userID, token)
 			} else {
 				cached, err = a.resolveByToken(token)
@@ -184,13 +199,14 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				return
 			}
 
-			stripServicePathPrefix(r, service)
-			targetURL := getServiceURL(cached.Namespace, service)
+			reqType := getRequestType(r)
+			stripRequestPathPrefix(r, reqType)
+			targetURL := getTargetURL(cached.Namespace, reqType)
 			targetURL = normalizeURL(targetURL)
 
-			if isRedirectService(service) {
+			if isRedirectRequest(reqType) {
 				redirectURL := targetURL + r.URL.Path
-				if service == logs && r.URL.RawQuery != "" {
+				if reqType == logs && r.URL.RawQuery != "" {
 					redirectURL = strings.Join([]string{redirectURL, "?", r.URL.RawQuery}, "")
 				}
 				http.Redirect(rw, r, redirectURL, http.StatusTemporaryRedirect)
@@ -229,13 +245,10 @@ func extractToken(auth string) (string, error) {
 	return auths[len(auths)-1], nil
 }
 
-func getService(req *http.Request) string {
+func getRequestType(req *http.Request) string {
 	reqPath := req.URL.Path
 	switch {
 	case strings.HasPrefix(reqPath, "/"+api):
-		if req.Header.Get(impersonate) != "" {
-			return che
-		}
 		return api
 	case strings.HasPrefix(reqPath, "/"+metrics):
 		return metrics
@@ -248,8 +261,8 @@ func getService(req *http.Request) string {
 	}
 }
 
-func getServiceURL(ns namespace, service string) string {
-	switch service {
+func getTargetURL(ns namespace, reqType string) string {
+	switch reqType {
 	case api:
 		return ns.ClusterURL
 	case metrics:
@@ -263,8 +276,8 @@ func getServiceURL(ns namespace, service string) string {
 	}
 }
 
-func isRedirectService(service string) bool {
-	if service == console || service == logs {
+func isRedirectRequest(reqType string) bool {
+	if reqType == console || reqType == logs {
 		return true
 	}
 	return false
@@ -277,8 +290,8 @@ func cacheKey(plainKey string) string {
 	return hash
 }
 
-func stripServicePathPrefix(r *http.Request, service string) {
-	prefix := "/" + service
+func stripRequestPathPrefix(r *http.Request, reqType string) {
+	prefix := "/" + reqType
 	if strings.HasPrefix(r.URL.Path, prefix) {
 		r.URL.Path = stripPrefix(r.URL.Path, prefix)
 		r.RequestURI = r.URL.RequestURI()
