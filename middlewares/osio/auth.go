@@ -192,8 +192,12 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
+
 			r.Header.Set("Target", cached.Location)
 			r.Header.Set("Authorization", "Bearer "+cached.Token)
+			if isSerivce {
+				r.Header.Del(UserIDHeader)
+			}
 		} else {
 			r.Header.Set("Target", "default")
 		}
