@@ -214,6 +214,9 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 			} else {
 				r.Header.Set("Target", targetURL)
 				r.Header.Set("Authorization", "Bearer "+cached.Token)
+				if isSerivce {
+					r.Header.Del(UserIDHeader)
+				}
 			}
 		} else {
 			r.Header.Set("Target", "default")

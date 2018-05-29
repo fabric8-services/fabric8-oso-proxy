@@ -208,6 +208,11 @@ func (t testCheCtx) varifyHandler(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("err", fmt.Sprintf("Token was incorrect, want:%s, got:%s", expectedToken, actualToken))
 		return
 	}
+	userID := req.Header.Get(UserIDHeader)
+	if userID != "" {
+		rw.Header().Set("err", fmt.Sprintf("%s header should not be set, want:%s, got:%s", UserIDHeader, "", userID))
+		return
+	}
 }
 
 func (t testCheCtx) startServer(url string, handler func(w http.ResponseWriter, r *http.Request)) (ts *httptest.Server) {
