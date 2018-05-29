@@ -64,10 +64,8 @@ func TestBasic(t *testing.T) {
 		cheSAToken := "1000_che_sa_token"
 
 		req, _ := http.NewRequest("GET", "http://"+osioURL+currReqPath, nil)
-		req.Header.Set("Authorization", "Bearer "+cheSAToken)
-		q := req.URL.Query()
-		q.Add("identity_id", table.userID)
-		req.URL.RawQuery = q.Encode()
+		req.Header.Set(Authorization, "Bearer "+cheSAToken)
+		req.Header.Set(UserIDHeader, table.userID)
 		res, _ := http.DefaultClient.Do(req)
 		assert.NotNil(t, res)
 		err := res.Header.Get("err")

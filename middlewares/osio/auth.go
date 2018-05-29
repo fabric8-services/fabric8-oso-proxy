@@ -13,6 +13,7 @@ import (
 
 const (
 	Authorization = "Authorization"
+	UserIDHeader  = "Impersonate-User"
 )
 
 type TenantLocator interface {
@@ -175,7 +176,12 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 
 			var cached cacheData
 			if isSerivce {
-				userID := r.URL.Query().Get("identity_id")
+				userID := r.Header.Get(UserIDHeader)
+				if userID == "" {
+					log.Errorf("%s header is missing", UserIDHeader)
+					rw.WriteHeader(http.StatusUnauthorized)
+					return
+				}
 				cached, err = a.resolveByID(userID, token)
 			} else {
 				cached, err = a.resolveByToken(token)
