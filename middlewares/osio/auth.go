@@ -16,12 +16,13 @@ const (
 	UserIDHeader  = "Impersonate-User"
 )
 
+type RequestType string
+
 const (
-	api     = "api"
-	che     = "che"
-	metrics = "metrics"
-	console = "console"
-	logs    = "logs"
+	api     RequestType = "api"
+	metrics RequestType = "metrics"
+	console RequestType = "console"
+	logs    RequestType = "logs"
 )
 
 type TenantLocator interface {
@@ -166,22 +167,23 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 	if a.RequestTenantLocation != nil {
 
 		if r.Method != "OPTIONS" {
+			// get token and check token type
 			token, err := getToken(r)
 			if err != nil {
 				log.Errorf("Token not found, %v", err)
 				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-
-			isSerivce, err := a.CheckSrvAccToken(token)
+			isSAToken, err := a.CheckSrvAccToken(token)
 			if err != nil {
 				log.Errorf("Invalid token, %v", err)
 				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 
+			// retrieve cache data
 			var cached cacheData
-			if isSerivce {
+			if isSAToken {
 				userID := r.Header.Get(UserIDHeader)
 				if userID == "" {
 					log.Errorf("%s header is missing", UserIDHeader)
@@ -192,29 +194,24 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 			} else {
 				cached, err = a.resolveByToken(token)
 			}
-
 			if err != nil {
 				log.Errorf("Cache resolve failed, %v", err)
 				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 
+			// routing or redirect
 			reqType := getRequestType(r)
-			stripRequestPathPrefix(r, reqType)
-			targetURL := getTargetURL(cached.Namespace, reqType)
-			targetURL = normalizeURL(targetURL)
-
-			if isRedirectRequest(reqType) {
-				redirectURL := targetURL + r.URL.Path
-				if reqType == logs && r.URL.RawQuery != "" {
-					redirectURL = strings.Join([]string{redirectURL, "?", r.URL.RawQuery}, "")
-				}
+			stripRequestPathPrefix(r, reqType.path())
+			targetURL := normalizeURL(reqType.getTargetURL(cached.Namespace))
+			if reqType.isRedirectRequest() {
+				redirectURL := reqType.getRedirectURL(targetURL, r)
 				http.Redirect(rw, r, redirectURL, http.StatusTemporaryRedirect)
 				return
 			} else {
 				r.Header.Set("Target", targetURL)
 				r.Header.Set("Authorization", "Bearer "+cached.Token)
-				if isSerivce {
+				if isSAToken {
 					r.Header.Del(UserIDHeader)
 				}
 			}
@@ -223,6 +220,56 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 		}
 	}
 	next(rw, r)
+}
+
+func getRequestType(req *http.Request) RequestType {
+	reqPath := req.URL.Path
+	switch {
+	case strings.HasPrefix(reqPath, api.path()):
+		return api
+	case strings.HasPrefix(reqPath, metrics.path()):
+		return metrics
+	case strings.HasPrefix(reqPath, console.path()):
+		return console
+	case strings.HasPrefix(reqPath, logs.path()):
+		return logs
+	default:
+		return api
+	}
+}
+
+func (r RequestType) path() string {
+	return "/" + string(r)
+}
+
+func (r RequestType) getTargetURL(ns namespace) string {
+	switch r {
+	case api:
+		return ns.ClusterURL
+	case metrics:
+		return ns.ClusterMetricsURL
+	case console:
+		return ns.ClusterConsoleURL
+	case logs:
+		return ns.ClusterLoggingURL
+	default:
+		return ns.ClusterURL
+	}
+}
+
+func (r RequestType) isRedirectRequest() bool {
+	if r == console || r == logs {
+		return true
+	}
+	return false
+}
+
+func (r RequestType) getRedirectURL(targetURL string, req *http.Request) string {
+	redirectURL := targetURL + req.URL.Path
+	if r == logs && req.URL.RawQuery != "" {
+		redirectURL = strings.Join([]string{redirectURL, "?", req.URL.RawQuery}, "")
+	}
+	return redirectURL
 }
 
 func getToken(r *http.Request) (string, error) {
@@ -248,44 +295,6 @@ func extractToken(auth string) (string, error) {
 	return auths[len(auths)-1], nil
 }
 
-func getRequestType(req *http.Request) string {
-	reqPath := req.URL.Path
-	switch {
-	case strings.HasPrefix(reqPath, "/"+api):
-		return api
-	case strings.HasPrefix(reqPath, "/"+metrics):
-		return metrics
-	case strings.HasPrefix(reqPath, "/"+console):
-		return console
-	case strings.HasPrefix(reqPath, "/"+logs):
-		return logs
-	default:
-		return api
-	}
-}
-
-func getTargetURL(ns namespace, reqType string) string {
-	switch reqType {
-	case api:
-		return ns.ClusterURL
-	case metrics:
-		return ns.ClusterMetricsURL
-	case console:
-		return ns.ClusterConsoleURL
-	case logs:
-		return ns.ClusterLoggingURL
-	default:
-		return ns.ClusterURL
-	}
-}
-
-func isRedirectRequest(reqType string) bool {
-	if reqType == console || reqType == logs {
-		return true
-	}
-	return false
-}
-
 func cacheKey(plainKey string) string {
 	h := sha256.New()
 	h.Write([]byte(plainKey))
@@ -293,11 +302,10 @@ func cacheKey(plainKey string) string {
 	return hash
 }
 
-func stripRequestPathPrefix(r *http.Request, reqType string) {
-	prefix := "/" + reqType
-	if strings.HasPrefix(r.URL.Path, prefix) {
-		r.URL.Path = stripPrefix(r.URL.Path, prefix)
-		r.RequestURI = r.URL.RequestURI()
+func stripRequestPathPrefix(req *http.Request, prefix string) {
+	if strings.HasPrefix(req.URL.Path, prefix) {
+		req.URL.Path = stripPrefix(req.URL.Path, prefix)
+		req.RequestURI = req.URL.RequestURI()
 	}
 }
 
