@@ -60,7 +60,19 @@ func ServeTenantRequest(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	res := "{\"data\":{\"attributes\":{\"namespaces\":[{\"cluster-url\":\"" + host + "/\"}]}}}"
+	res := fmt.Sprintf(`{
+		"data": {
+			"attributes": {
+				"namespaces": [
+					{
+						"name": "john-preview",
+						"type": "user",
+						"cluster-url": "%s/"
+					}
+				]
+			}
+		}
+	}`, host)
 	rw.Write([]byte(res))
 }
 
