@@ -23,7 +23,7 @@ type JSONKeys struct {
 	Keys []interface{} `json:"keys"`
 }
 
-func CreateSrvAccTokenChecker(client *http.Client, authURL string) SrvAccTokenChecker {
+func CreateTokenTypeLocator(client *http.Client, authURL string) TokenTypeLocator {
 	var publicKeysMap map[string]*rsa.PublicKey
 
 	keyFunc := func(token *jwt.Token) (interface{}, error) {
@@ -40,11 +40,11 @@ func CreateSrvAccTokenChecker(client *http.Client, authURL string) SrvAccTokenCh
 		return key, nil
 	}
 
-	return func(token string) (bool, error) {
+	return func(token string) (TokenType, error) {
 		if publicKeysMap == nil {
 			remoteKeys, err := fetchKeys(client, authURL)
 			if err != nil {
-				return false, err
+				return "", err
 			}
 			publicKeysMap = make(map[string]*rsa.PublicKey)
 			for _, remoteKey := range remoteKeys {
@@ -53,18 +53,29 @@ func CreateSrvAccTokenChecker(client *http.Client, authURL string) SrvAccTokenCh
 		}
 		jwtToken, err := jwt.Parse(token, keyFunc)
 		if err != nil {
-			return false, err
+			return "", err
 		}
 		accountName := jwtToken.Claims.(jwt.MapClaims)["service_accountname"]
-		if accountName == nil {
-			return false, nil // NOT a SA token
+		if accountName != nil {
+			accNameStr, isString := accountName.(string)
+			if isString {
+				tokenType := TokenTypeMap[accNameStr]
+				if tokenType == "" {
+					return "", fmt.Errorf("service_accountname '%s' not supported", accNameStr)
+				}
+				return tokenType, nil
+			}
+			return "", fmt.Errorf("Not valid JWT token")
 		}
-		_, isString := accountName.(string)
-		if isString {
-			return true, nil
-		} else {
-			return false, fmt.Errorf("Not valid JWT token")
+		sub := jwtToken.Claims.(jwt.MapClaims)["sub"]
+		if sub != nil {
+			_, isString := sub.(string)
+			if isString {
+				return UserToken, nil
+			}
+			return "", fmt.Errorf("Not valid JWT token")
 		}
+		return "", fmt.Errorf("Not valid JWT token")
 	}
 }
 

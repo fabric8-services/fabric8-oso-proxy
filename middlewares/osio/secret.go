@@ -36,8 +36,7 @@ func CreateSecretLocator(client *http.Client) SecretLocator {
 
 func (s *secretLocator) GetName(clusterUrl, clusterToken, nsName, nsType string) (string, error) {
 	// https://api.starter-us-east-2a.openshift.com/api/v1/namespaces/nvirani-preview-che/serviceaccounts/che
-	// TODO: NT: nsType not used
-	url := fmt.Sprintf("%sapi/v1/namespaces/%s/serviceaccounts/che", clusterUrl, nsName)
+	url := fmt.Sprintf("%sapi/v1/namespaces/%s/serviceaccounts/%s", clusterUrl, nsName, nsType)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
