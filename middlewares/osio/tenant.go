@@ -62,7 +62,7 @@ func locateTenant(client *http.Client, url, token string) (ns namespace, err err
 	req.Header.Set(Authorization, "Bearer "+token)
 	resp, err := client.Do(req)
 	if resp.StatusCode != http.StatusOK {
-		return ns, fmt.Errorf("Unknown status code " + resp.Status)
+		return ns, fmt.Errorf("Call to '%s' failed with status '%s'", url, resp.Status)
 	}
 	defer resp.Body.Close()
 
