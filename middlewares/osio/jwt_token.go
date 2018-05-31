@@ -84,7 +84,7 @@ func fetchKeys(client *http.Client, authURL string) ([]*PublicKey, error) {
 		return nil, err
 	}
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to obtain public keys from remote service, unknown status code %s", res.Status)
+		return nil, fmt.Errorf("Failed to obtain public keys from remote service, call to '%s' failed with status '%s'", keysEndpointURL, res.Status)
 	}
 	keys, err := unmarshalKeys(body)
 	if err != nil {
