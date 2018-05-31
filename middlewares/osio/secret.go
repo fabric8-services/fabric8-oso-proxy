@@ -36,8 +36,7 @@ func CreateSecretLocator(client *http.Client) SecretLocator {
 
 func (s *secretLocator) GetName(clusterUrl, clusterToken, nsName, nsType string) (string, error) {
 	// https://api.starter-us-east-2a.openshift.com/api/v1/namespaces/nvirani-preview-che/serviceaccounts/che
-	// TODO: NT: nsType not used
-	url := fmt.Sprintf("%sapi/v1/namespaces/%s/serviceaccounts/che", clusterUrl, nsName)
+	url := fmt.Sprintf("%sapi/v1/namespaces/%s/serviceaccounts/%s", clusterUrl, nsName, nsType)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
@@ -45,7 +44,7 @@ func (s *secretLocator) GetName(clusterUrl, clusterToken, nsName, nsType string)
 	req.Header.Set(Authorization, "Bearer "+clusterToken)
 	resp, err := s.client.Do(req)
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Unknown status code " + resp.Status)
+		return "", fmt.Errorf("Call to '%s' failed with status '%s'", url, resp.Status)
 	}
 	defer resp.Body.Close()
 
@@ -67,7 +66,7 @@ func (s *secretLocator) GetSecret(clusterUrl, clusterToken, nsName, secretName s
 	req.Header.Set(Authorization, "Bearer "+clusterToken)
 	resp, err := s.client.Do(req)
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Unknown status code " + resp.Status)
+		return "", fmt.Errorf("Call to '%s' failed with status '%s'", url, resp.Status)
 	}
 	defer resp.Body.Close()
 
