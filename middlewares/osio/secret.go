@@ -45,7 +45,7 @@ func (s *secretLocator) GetName(clusterUrl, clusterToken, nsName, nsType string)
 	req.Header.Set(Authorization, "Bearer "+clusterToken)
 	resp, err := s.client.Do(req)
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Unknown status code " + resp.Status)
+		return "", fmt.Errorf("Call to '%s' failed with status '%s'", url, resp.Status)
 	}
 	defer resp.Body.Close()
 
@@ -67,7 +67,7 @@ func (s *secretLocator) GetSecret(clusterUrl, clusterToken, nsName, secretName s
 	req.Header.Set(Authorization, "Bearer "+clusterToken)
 	resp, err := s.client.Do(req)
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Unknown status code " + resp.Status)
+		return "", fmt.Errorf("Call to '%s' failed with status '%s'", url, resp.Status)
 	}
 	defer resp.Body.Close()
 
