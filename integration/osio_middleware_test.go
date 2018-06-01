@@ -30,18 +30,18 @@ func (s *OSIOMiddlewareSuite) TestOSIO(c *check.C) {
 	authServer := common.StartServer(9091, common.ServerAuthRequest(serverMiddlewareCluster))
 	defer authServer.Close()
 
+	// Start OSIO servers
+	ts1 := common.StartServer(8081, nil)
+	defer ts1.Close()
+	ts2 := common.StartServer(8082, nil)
+	defer ts2.Close()
+
 	// Start Traefik
 	cmd, display := s.traefikCmd(withConfigFile("fixtures/osio_middleware_config.toml"))
 	defer display(c)
 	err := cmd.Start()
 	c.Assert(err, checker.IsNil)
 	defer cmd.Process.Kill()
-
-	// Start OSIO servers
-	ts1 := common.StartServer(8081, nil)
-	defer ts1.Close()
-	ts2 := common.StartServer(8082, nil)
-	defer ts2.Close()
 
 	// Make some requests
 	req, _ := http.NewRequest("GET", "http://127.0.0.1:8000/test", nil)

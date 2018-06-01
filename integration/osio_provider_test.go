@@ -28,13 +28,6 @@ func (s *OSIOProviderSuite) TestOSIOProvider(c *check.C) {
 	authServer := common.StartServer(9091, common.ServerAuthRequest(serveProviderCluster))
 	defer authServer.Close()
 
-	// Start Traefik
-	cmd, display := s.traefikCmd(withConfigFile("fixtures/osio_provider_config.toml"))
-	defer display(c)
-	err := cmd.Start()
-	c.Assert(err, checker.IsNil)
-	defer cmd.Process.Kill()
-
 	// Start OSIO servers
 	ts1 := common.StartServer(8081, nil)
 	defer ts1.Close()
@@ -44,6 +37,13 @@ func (s *OSIOProviderSuite) TestOSIOProvider(c *check.C) {
 	defer ts3.Close()
 	ts4 := common.StartServer(7072, nil)
 	defer ts4.Close()
+
+	// Start Traefik
+	cmd, display := s.traefikCmd(withConfigFile("fixtures/osio_provider_config.toml"))
+	defer display(c)
+	err := cmd.Start()
+	c.Assert(err, checker.IsNil)
+	defer cmd.Process.Kill()
 
 	// make multiple reqeust on some time gap
 	// note, req has 'Bearer 2222' so it should go to 'http://127.0.0.1:8082' check ServeWITRequest()
