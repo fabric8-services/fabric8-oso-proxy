@@ -25,9 +25,21 @@ const (
 	logs    RequestType = "logs"
 )
 
+const (
+	// service maps to token type, if not a service token then it maps to UserToken
+	CheToken  TokenType = "che"
+	UserToken TokenType = "user"
+)
+
+var TokenTypeMap = map[string]TokenType{
+	"rh-che": CheToken,
+}
+
+type TokenType string
+
 type TenantLocator interface {
-	GetTenant(token string) (namespace, error)
-	GetTenantById(token, userID string) (namespace, error)
+	GetTenant(token string, tokenType TokenType) (namespace, error)
+	GetTenantById(token string, tokenType TokenType, userID string) (namespace, error)
 }
 
 type TenantTokenLocator interface {
@@ -42,7 +54,7 @@ type SecretLocator interface {
 	GetSecret(clusterUrl, clusterToken, nsName, secretName string) (string, error)
 }
 
-type SrvAccTokenChecker func(string) (bool, error)
+type TokenTypeLocator func(string) (TokenType, error)
 
 type cacheData struct {
 	Token     string
@@ -54,7 +66,7 @@ type OSIOAuth struct {
 	RequestTenantToken    TenantTokenLocator
 	RequestSrvAccToken    SrvAccTokenLocator
 	RequestSecretLocation SecretLocator
-	CheckSrvAccToken      SrvAccTokenChecker
+	RequestTokenType      TokenTypeLocator
 	cache                 *Cache
 }
 
@@ -89,14 +101,14 @@ func NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret string) *OSIOAuth {
 		RequestTenantToken:    CreateTenantTokenLocator(http.DefaultClient, authURL),
 		RequestSrvAccToken:    CreateSrvAccTokenLocator(authURL, srvAccID, srvAccSecret),
 		RequestSecretLocation: CreateSecretLocator(http.DefaultClient),
-		CheckSrvAccToken:      CreateSrvAccTokenChecker(http.DefaultClient, authURL),
+		RequestTokenType:      CreateTokenTypeLocator(http.DefaultClient, authURL),
 		cache:                 &Cache{},
 	}
 }
 
-func cacheResolverByID(tenantLocator TenantLocator, tokenLocator TenantTokenLocator, srvAccTokenLocator SrvAccTokenLocator, secretLocator SecretLocator, token, userID string) Resolver {
+func cacheResolverByID(tenantLocator TenantLocator, tokenLocator TenantTokenLocator, srvAccTokenLocator SrvAccTokenLocator, secretLocator SecretLocator, token string, tokenType TokenType, userID string) Resolver {
 	return func() (interface{}, error) {
-		namespace, err := tenantLocator.GetTenantById(token, userID)
+		namespace, err := tenantLocator.GetTenantById(token, tokenType, userID)
 		if err != nil {
 			log.Errorf("Failed to locate tenant, %v", err)
 			return cacheData{}, err
@@ -125,9 +137,9 @@ func cacheResolverByID(tenantLocator TenantLocator, tokenLocator TenantTokenLoca
 	}
 }
 
-func cacheResolverByToken(tenantLocator TenantLocator, tokenLocator TenantTokenLocator, token string) Resolver {
+func cacheResolverByToken(tenantLocator TenantLocator, tokenLocator TenantTokenLocator, token string, tokenType TokenType) Resolver {
 	return func() (interface{}, error) {
-		namespace, err := tenantLocator.GetTenant(token)
+		namespace, err := tenantLocator.GetTenant(token, tokenType)
 		if err != nil {
 			log.Errorf("Failed to locate tenant, %v", err)
 			return cacheData{}, err
@@ -141,9 +153,9 @@ func cacheResolverByToken(tenantLocator TenantLocator, tokenLocator TenantTokenL
 	}
 }
 
-func (a *OSIOAuth) resolveByToken(token string) (cacheData, error) {
+func (a *OSIOAuth) resolveByToken(token string, tokenType TokenType) (cacheData, error) {
 	key := cacheKey(token)
-	val, err := a.cache.Get(key, cacheResolverByToken(a.RequestTenantLocation, a.RequestTenantToken, token)).Get()
+	val, err := a.cache.Get(key, cacheResolverByToken(a.RequestTenantLocation, a.RequestTenantToken, token, tokenType)).Get()
 
 	if data, ok := val.(cacheData); ok {
 		return data, err
@@ -151,10 +163,10 @@ func (a *OSIOAuth) resolveByToken(token string) (cacheData, error) {
 	return cacheData{}, err
 }
 
-func (a *OSIOAuth) resolveByID(userID, token string) (cacheData, error) {
+func (a *OSIOAuth) resolveByID(userID, token string, tokenType TokenType) (cacheData, error) {
 	plainKey := fmt.Sprintf("%s_%s", token, userID)
 	key := cacheKey(plainKey)
-	val, err := a.cache.Get(key, cacheResolverByID(a.RequestTenantLocation, a.RequestTenantToken, a.RequestSrvAccToken, a.RequestSecretLocation, token, userID)).Get()
+	val, err := a.cache.Get(key, cacheResolverByID(a.RequestTenantLocation, a.RequestTenantToken, a.RequestSrvAccToken, a.RequestSecretLocation, token, tokenType, userID)).Get()
 
 	if data, ok := val.(cacheData); ok {
 		return data, err
@@ -167,14 +179,14 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 	if a.RequestTenantLocation != nil {
 
 		if r.Method != "OPTIONS" {
-			// get token and check token type
+			// get token and token type
 			token, err := getToken(r)
 			if err != nil {
 				log.Errorf("Token not found, %v", err)
 				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			isSAToken, err := a.CheckSrvAccToken(token)
+			tokenType, err := a.RequestTokenType(token)
 			if err != nil {
 				log.Errorf("Invalid token, %v", err)
 				rw.WriteHeader(http.StatusUnauthorized)
@@ -183,16 +195,16 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 
 			// retrieve cache data
 			var cached cacheData
-			if isSAToken {
+			if tokenType != UserToken {
 				userID := r.Header.Get(UserIDHeader)
 				if userID == "" {
 					log.Errorf("%s header is missing", UserIDHeader)
 					rw.WriteHeader(http.StatusUnauthorized)
 					return
 				}
-				cached, err = a.resolveByID(userID, token)
+				cached, err = a.resolveByID(userID, token, tokenType)
 			} else {
-				cached, err = a.resolveByToken(token)
+				cached, err = a.resolveByToken(token, tokenType)
 			}
 			if err != nil {
 				log.Errorf("Cache resolve failed, %v", err)
@@ -211,7 +223,7 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 			} else {
 				r.Header.Set("Target", targetURL)
 				r.Header.Set("Authorization", "Bearer "+cached.Token)
-				if isSAToken {
+				if tokenType != UserToken {
 					r.Header.Del(UserIDHeader)
 				}
 			}

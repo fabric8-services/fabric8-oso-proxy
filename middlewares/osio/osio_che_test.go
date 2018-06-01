@@ -55,7 +55,7 @@ func TestChe(t *testing.T) {
 	srvAccSecret := "secret"
 
 	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret)
-	osio.CheckSrvAccToken = testSrvAccToken
+	osio.RequestTokenType = cheCtx.testTokenTypeLocator
 	osioServer := cheCtx.createServer(cheCtx.serverOSIORequest(osio))
 	defer osioServer.Close()
 	osioURL := osioServer.Listener.Addr().String()
@@ -72,8 +72,9 @@ func TestChe(t *testing.T) {
 		req.Header.Set(UserIDHeader, table.userID)
 		res, _ := http.DefaultClient.Do(req)
 		assert.NotNil(t, res)
-		err := res.Header.Get("err")
-		assert.Empty(t, err, err)
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+		errMsg := res.Header.Get("err")
+		assert.Empty(t, errMsg, errMsg)
 
 		cluster.Close()
 	}
@@ -111,17 +112,83 @@ func (t testCheCtx) serveTenantRequest(rw http.ResponseWriter, req *http.Request
 	if strings.HasSuffix(req.URL.Path, "/tenants/john") {
 		res = `{
 			"data": {
-				"attributes": {
-					"namespaces": [
-						{
-							"name": "john-preview-che",
-							"type": "che",
-							"cluster-url": "http://127.0.0.1:9091/"
-						}
-					]
-				}
+			  "attributes": {
+				"created-at": "2018-03-21T11:28:22.042269Z",
+				"namespaces": [
+				  {
+					"cluster-app-domain": "b542.starter-us-east-2a.openshiftapps.com",
+					"cluster-console-url": "https://console.starter-us-east-2a.openshift.com/console/",
+					"cluster-logging-url": "https://console.starter-us-east-2a.openshift.com/console/",
+					"cluster-metrics-url": "https://metrics.starter-us-east-2a.openshift.com/",
+					"cluster-url": "http://127.0.0.1:9091/",
+					"created-at": "2018-03-21T11:28:22.299195Z",
+					"name": "john-preview-stage",
+					"state": "created",
+					"type": "stage",
+					"updated-at": "2018-03-21T11:28:22.299195Z",
+					"version": "2.0.11"
+				  },
+				  {
+					"cluster-app-domain": "b542.starter-us-east-2a.openshiftapps.com",
+					"cluster-console-url": "https://console.starter-us-east-2a.openshift.com/console/",
+					"cluster-logging-url": "https://console.starter-us-east-2a.openshift.com/console/",
+					"cluster-metrics-url": "https://metrics.starter-us-east-2a.openshift.com/",
+					"cluster-url": "http://127.0.0.1:9091/",
+					"created-at": "2018-03-21T11:28:22.372172Z",
+					"name": "john-preview-run",
+					"state": "created",
+					"type": "run",
+					"updated-at": "2018-03-21T11:28:22.372172Z",
+					"version": "2.0.11"
+				  },
+				  {
+					"cluster-app-domain": "b542.starter-us-east-2a.openshiftapps.com",
+					"cluster-console-url": "https://console.starter-us-east-2a.openshift.com/console/",
+					"cluster-logging-url": "https://console.starter-us-east-2a.openshift.com/console/",
+					"cluster-metrics-url": "https://metrics.starter-us-east-2a.openshift.com/",
+					"cluster-url": "http://127.0.0.1:9091/",
+					"created-at": "2018-03-21T11:28:22.401522Z",
+					"name": "john-preview-jenkins",
+					"state": "created",
+					"type": "jenkins",
+					"updated-at": "2018-03-21T11:28:22.401522Z",
+					"version": "2.0.11"
+				  },
+				  {
+					"cluster-app-domain": "b542.starter-us-east-2a.openshiftapps.com",
+					"cluster-console-url": "https://console.starter-us-east-2a.openshift.com/console/",
+					"cluster-logging-url": "https://console.starter-us-east-2a.openshift.com/console/",
+					"cluster-metrics-url": "https://metrics.starter-us-east-2a.openshift.com/",
+					"cluster-url": "http://127.0.0.1:9091/",
+					"created-at": "2018-03-21T11:28:22.413148Z",
+					"name": "john-preview-che",
+					"state": "created",
+					"type": "che",
+					"updated-at": "2018-03-21T11:28:22.413148Z",
+					"version": "2.0.11"
+				  },
+				  {
+					"cluster-app-domain": "b542.starter-us-east-2a.openshiftapps.com",
+					"cluster-console-url": "https://console.starter-us-east-2a.openshift.com/console/",
+					"cluster-logging-url": "https://console.starter-us-east-2a.openshift.com/console/",
+					"cluster-metrics-url": "https://metrics.starter-us-east-2a.openshift.com/",
+					"cluster-url": "http://127.0.0.1:9091/",
+					"created-at": "2018-03-21T11:28:22.421707Z",
+					"name": "john-preview",
+					"state": "created",
+					"type": "user",
+					"updated-at": "2018-03-21T11:28:22.421707Z",
+					"version": "1.0.91"
+				  }
+				]
+			  },
+			  "id": "a25d20d6-4c6d-498c-97d0-cc7f2abcaca6",
+			  "type": "userservices"
 			}
-		}`
+		  }`
+	} else {
+		rw.WriteHeader(http.StatusBadRequest)
+		return
 	}
 	rw.Write([]byte(res))
 }
@@ -185,6 +252,9 @@ func (t testCheCtx) serveClusterRequest(rw http.ResponseWriter, req *http.Reques
 			},
 			"type": "kubernetes.io/service-account-token"
 		  }`
+	} else {
+		rw.WriteHeader(http.StatusBadRequest)
+		return
 	}
 	rw.Write([]byte(res))
 }
@@ -228,6 +298,6 @@ func (t testCheCtx) startServer(url string, handler func(w http.ResponseWriter, 
 	return
 }
 
-func testSrvAccToken(token string) (bool, error) {
-	return true, nil
+func (t testCheCtx) testTokenTypeLocator(token string) (TokenType, error) {
+	return CheToken, nil
 }

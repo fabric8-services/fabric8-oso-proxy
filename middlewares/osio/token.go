@@ -65,7 +65,8 @@ func CreateTenantTokenLocator(client *http.Client, authBaseURL string) TenantTok
 }
 
 func locateToken(client *http.Client, authBaseURL, token, location string) (string, error) {
-	req, err := http.NewRequest("GET", authBaseURL+"/token?for="+location, nil)
+	url := authBaseURL + "/token?for=" + location
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
 	}
@@ -73,7 +74,7 @@ func locateToken(client *http.Client, authBaseURL, token, location string) (stri
 
 	resp, err := client.Do(req)
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Unknown status code " + resp.Status)
+		return "", fmt.Errorf("Call to '%s' failed with status '%s'", url, resp.Status)
 	}
 	defer resp.Body.Close()
 

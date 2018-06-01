@@ -69,7 +69,8 @@ func ServeTenantRequest(rw http.ResponseWriter, req *http.Request) {
 			"attributes": {
 				"namespaces": [
 					{
-						"name": "myuser-preview-stage",
+						"name": "myuser-preview",
+						"type": "user",
 						"cluster-metrics-url": "%s",
 						"cluster-url": "%s"
 					}

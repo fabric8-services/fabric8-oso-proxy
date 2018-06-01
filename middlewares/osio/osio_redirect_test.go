@@ -69,7 +69,7 @@ func TestRedirect(t *testing.T) {
 	srvAccSecret := "secret"
 
 	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret)
-	osio.CheckSrvAccToken = redirectCtx.testSrvAccToken
+	osio.RequestTokenType = redirectCtx.testTokenTypeLocator
 	osioServer := redirectCtx.createServer(redirectCtx.serveOSIORequest(osio))
 	defer osioServer.Close()
 	osioURL := osioServer.Listener.Addr().String()
@@ -148,6 +148,7 @@ func (t testRedirectCtx) serverTenantRequest(rw http.ResponseWriter, req *http.R
 				"namespaces": [
 					{
 						"name": "myuser-preview-stage",
+						"type": "user",
 						"cluster-console-url": "%s",
 						"cluster-logging-url": "%s"
 					}
@@ -197,8 +198,8 @@ func (t testRedirectCtx) serveOSORequest(rw http.ResponseWriter, req *http.Reque
 	}
 }
 
-func (t testRedirectCtx) testSrvAccToken(token string) (bool, error) {
-	return false, nil
+func (t testRedirectCtx) testTokenTypeLocator(token string) (TokenType, error) {
+	return UserToken, nil
 }
 
 func nopHandler(rw http.ResponseWriter, req *http.Request) {

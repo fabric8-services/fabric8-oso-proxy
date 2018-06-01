@@ -39,7 +39,7 @@ func TestTenantServiceClient(t *testing.T) {
 				"http://"+server.Listener.Addr().String(),
 			)
 
-			ns, err := locator.GetTenant("xxxxx")
+			ns, err := locator.GetTenant("xxxxx", UserToken)
 			url := ns.ClusterURL
 			assert.Equal(t, test.url, url, "expected URL to be equal")
 			if test.err == nil {
@@ -66,7 +66,8 @@ func tenantService200OK(rw http.ResponseWriter, r *http.Request) {
 				"attributes": {
 					"namespaces": [
 						{
-							"name": "che",
+							"name": "john-preview",
+							"type": "user",
 							"cluster-url": "http://www.test.org"
 						}
 					]

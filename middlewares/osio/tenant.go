@@ -14,14 +14,14 @@ type tenantLocator struct {
 	tenantURL string
 }
 
-func (t *tenantLocator) GetTenant(token string) (namespace, error) {
+func (t *tenantLocator) GetTenant(token string, tokenType TokenType) (namespace, error) {
 	url := fmt.Sprintf("%s/tenant", t.tenantURL)
-	return locateTenant(t.client, url, token)
+	return locateTenant(t.client, url, token, tokenType)
 }
 
-func (t *tenantLocator) GetTenantById(token, userID string) (namespace, error) {
+func (t *tenantLocator) GetTenantById(token string, tokenType TokenType, userID string) (namespace, error) {
 	url := fmt.Sprintf("%s/tenants/%s", t.tenantURL, userID)
-	return locateTenant(t.client, url, token)
+	return locateTenant(t.client, url, token, tokenType)
 }
 
 func CreateTenantLocator(client *http.Client, tenantBaseURL string) TenantLocator {
@@ -49,15 +49,19 @@ type namespace struct {
 	ClusterLoggingURL string `json:"cluster-logging-url,omitempty"`
 }
 
-func getNamespace(resp response) (ns namespace, err error) {
+func getNamespace(resp response, tokenType TokenType) (ns namespace, err error) {
 	if len(resp.Data.Attributes.Namespaces) == 0 {
-		return ns, fmt.Errorf("unable to locate cluster url")
+		return ns, fmt.Errorf("no namespace found")
 	}
-
-	return resp.Data.Attributes.Namespaces[0], nil
+	for _, namespace := range resp.Data.Attributes.Namespaces {
+		if namespace.Type == string(tokenType) {
+			return namespace, nil
+		}
+	}
+	return ns, fmt.Errorf("no namespace matched")
 }
 
-func locateTenant(client *http.Client, url, token string) (ns namespace, err error) {
+func locateTenant(client *http.Client, url, token string, tokenType TokenType) (ns namespace, err error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return ns, err
@@ -65,7 +69,7 @@ func locateTenant(client *http.Client, url, token string) (ns namespace, err err
 	req.Header.Set(Authorization, "Bearer "+token)
 	resp, err := client.Do(req)
 	if resp.StatusCode != http.StatusOK {
-		return ns, fmt.Errorf("Unknown status code " + resp.Status)
+		return ns, fmt.Errorf("Call to '%s' failed with status '%s'", url, resp.Status)
 	}
 	defer resp.Body.Close()
 
@@ -74,5 +78,5 @@ func locateTenant(client *http.Client, url, token string) (ns namespace, err err
 	if err != nil {
 		return ns, err
 	}
-	return getNamespace(r)
+	return getNamespace(r, tokenType)
 }

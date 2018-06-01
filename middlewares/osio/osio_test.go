@@ -99,7 +99,7 @@ func TestMiddleware(t *testing.T) {
 	srvAccSecret := "secret"
 
 	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret)
-	osio.CheckSrvAccToken = mwCtx.testSrvAccToken
+	osio.RequestTokenType = mwCtx.testTokenTypeLocator
 	osioServer := mwCtx.createServer(mwCtx.serverOSIORequest(osio))
 	osioURL := osioServer.Listener.Addr().String()
 
@@ -112,8 +112,10 @@ func TestMiddleware(t *testing.T) {
 		req, _ := http.NewRequest("GET", "http://"+osioURL+currReqPath, nil)
 		req.Header.Set("Authorization", currAuth)
 		res, _ := http.DefaultClient.Do(req)
-		err := res.Header.Get("err")
-		assert.Empty(t, err, err)
+		assert.NotNil(t, res)
+		assert.Equal(t, http.StatusOK, res.StatusCode)
+		errMsg := res.Header.Get("err")
+		assert.Empty(t, errMsg, errMsg)
 	}
 
 	// validate cache is used
@@ -137,6 +139,7 @@ func (t testMiddlewareCtx) serveTenantRequest(rw http.ResponseWriter, req *http.
 				"namespaces": [
 					{
 						"name": "myuser-preview-stage",
+						"type": "user",
 						"cluster-metrics-url": "http://metrics.cluster1.com",
 						"cluster-url": "http://api.cluster1.com"
 					}
@@ -194,6 +197,6 @@ func (t testMiddlewareCtx) varifyHandler(rw http.ResponseWriter, req *http.Reque
 	}
 }
 
-func (t testMiddlewareCtx) testSrvAccToken(token string) (bool, error) {
-	return false, nil
+func (t testMiddlewareCtx) testTokenTypeLocator(token string) (TokenType, error) {
+	return UserToken, nil
 }
