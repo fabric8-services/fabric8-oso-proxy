@@ -14,6 +14,7 @@ import (
 const (
 	Authorization = "Authorization"
 	UserIDHeader  = "Impersonate-User"
+	UserIDParam   = "identity_id"
 )
 
 type RequestType string
@@ -196,9 +197,9 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 			// retrieve cache data
 			var cached cacheData
 			if tokenType != UserToken {
-				userID := r.Header.Get(UserIDHeader)
+				userID := extractUserID(r)
 				if userID == "" {
-					log.Errorf("%s header is missing", UserIDHeader)
+					log.Errorf("user identity is missing")
 					rw.WriteHeader(http.StatusUnauthorized)
 					return
 				}
@@ -224,7 +225,7 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				r.Header.Set("Target", targetURL)
 				r.Header.Set("Authorization", "Bearer "+cached.Token)
 				if tokenType != UserToken {
-					r.Header.Del(UserIDHeader)
+					removeUserID(r)
 				}
 			}
 		} else {
@@ -331,4 +332,39 @@ func ensureLeadingSlash(str string) string {
 
 func normalizeURL(url string) string {
 	return strings.TrimSuffix(url, "/")
+}
+
+func extractUserID(req *http.Request) string {
+	userID := ""
+	if req.Header.Get(UserIDHeader) != "" {
+		userID = req.Header.Get(UserIDHeader)
+	} else if req.URL.Query().Get(UserIDParam) != "" {
+		userID = req.URL.Query().Get(UserIDParam)
+		if strings.Contains(userID, "/") {
+			endInd := strings.Index(userID, "/")
+			userID = userID[:endInd]
+		}
+	}
+	return userID
+}
+
+func removeUserID(req *http.Request) {
+	if req.Header.Get(UserIDHeader) != "" {
+		req.Header.Del(UserIDHeader)
+	}
+	if req.URL.Query().Get(UserIDParam) != "" {
+		userID := req.URL.Query().Get(UserIDParam)
+		if strings.Contains(userID, "/") {
+			q := req.URL.Query()
+			q.Del(UserIDParam)
+			req.URL.RawQuery = q.Encode()
+			startInd := strings.Index(userID, "/")
+			req.URL.Path = userID[startInd:]
+			req.RequestURI = req.URL.RequestURI()
+		} else {
+			q := req.URL.Query()
+			q.Del(UserIDParam)
+			req.URL.RawQuery = q.Encode()
+		}
+	}
 }
