@@ -271,6 +271,19 @@ func removeUserID(req *http.Request) {
 		if strings.Contains(userID, "/") {
 			q := req.URL.Query()
 			q.Del(UserIDParam)
+
+			if strings.Contains(userID, "?") {
+				indexOfQuery := strings.Index(userID, "?")
+
+				// adding missing query parameters to request URL query
+				missingQueryParam := userID[indexOfQuery+1:]
+				keyValue := strings.Split(missingQueryParam, "=")
+				q.Add(keyValue[0], keyValue[1])
+
+				// removing query params from userID
+				userID = userID[:indexOfQuery]
+			}
+
 			req.URL.RawQuery = q.Encode()
 			startInd := strings.Index(userID, "/")
 			req.URL.Path = userID[startInd:]

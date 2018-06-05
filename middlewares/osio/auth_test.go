@@ -27,7 +27,7 @@ func TestExtracToken(t *testing.T) {
 }
 
 func TestExtractUserID(t *testing.T) {
-	expectedUserID := "john"
+	expectedUserID := "11111111-1111-1111-1111-11111111"
 
 	t.Run("UserID as header", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, "http://f8osoproxy.com", nil)
@@ -58,10 +58,17 @@ func TestExtractUserID(t *testing.T) {
 		userID := extractUserID(req)
 		assert.Equal(t, expectedUserID, userID)
 	})
+
+	t.Run("UserID as part of ugly url produced by kubernetes client for 'exec' calls", func(t *testing.T) {
+		adhocURL:= fmt.Sprintf("http://f8osoproxy.com?%s=%s/some/path/to/pod/exec?command=date&tty=true&stdin=true&stdout=true&stderr=true", UserIDParam, expectedUserID)
+		req, _ := http.NewRequest(http.MethodGet, adhocURL, nil)
+		userID := extractUserID(req)
+		assert.Equal(t, expectedUserID, userID)
+	})
 }
 
 func TestRemoveUserID(t *testing.T) {
-	userID := "john"
+	userID := "11111111-1111-1111-1111-11111111"
 
 	t.Run("UserID as header", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, "http://f8osoproxy.com", nil)
@@ -88,5 +95,60 @@ func TestRemoveUserID(t *testing.T) {
 		assert.Empty(t, actualUserID)
 		assert.Equal(t, path, req.URL.Path)
 		assert.Equal(t, path, req.RequestURI)
+	})
+
+	t.Run("UserID as part of path with query parameters", func(t *testing.T) {
+		pathWithQueryParam := "/some/path?key=value"
+		adhocURL := fmt.Sprintf("http://f8osoproxy.com/?%s=%s%s", UserIDParam, userID, pathWithQueryParam)
+		req, _ := http.NewRequest(http.MethodGet, adhocURL, nil)
+		removeUserID(req)
+
+		actualUserID := req.URL.Query().Get(UserIDParam)
+		assert.Empty(t, actualUserID)
+
+		queryParamValue := req.URL.Query().Get("key");
+		assert.Equal(t, "value", queryParamValue)
+
+		assert.Equal(t, "key=value", req.URL.RawQuery)
+		assert.Equal(t, pathWithQueryParam, req.RequestURI)
+	})
+
+	t.Run("UserID as part of ugly url produced by kubernetes client for 'exec' calls with single query parameter", func(t *testing.T) {
+		pathWithParam := "/some/path/to/pod/exec?command=date"
+		adhocURL := fmt.Sprintf("http://f8osoproxy.com?%s=%s%s", UserIDParam, userID, pathWithParam)
+		req, _ := http.NewRequest(http.MethodGet, adhocURL, nil)
+		removeUserID(req)
+
+		actualUserID := req.URL.Query().Get(UserIDParam)
+		assert.Empty(t, actualUserID)
+
+		commandQueryParam := req.URL.Query().Get("command")
+		assert.Equal(t, "date", commandQueryParam)
+		assert.Equal(t, pathWithParam, req.RequestURI)
+	})
+
+	t.Run("UserID as part of ugly url produced by kubernetes client for 'exec' calls with multiple query parameters", func(t *testing.T) {
+		pathWithParams := "/some/path/to/pod/exec?command=date&tty=true&stdin=true&stdout=true&stderr=false"
+		adhocURL := fmt.Sprintf("http://f8osoproxy.com?%s=%s%s", UserIDParam, userID, pathWithParams)
+		req, _ := http.NewRequest(http.MethodGet, adhocURL, nil)
+		removeUserID(req)
+
+		actualUserID := req.URL.Query().Get(UserIDParam)
+		assert.Empty(t, actualUserID)
+
+		commandQueryParam := req.URL.Query().Get("command")
+		assert.Equal(t, "date", commandQueryParam)
+
+		ttyQueryParam := req.URL.Query().Get("tty")
+		assert.Equal(t, "true", ttyQueryParam)
+
+		stdin := req.URL.Query().Get("stdin")
+		assert.Equal(t, "true", stdin)
+
+		stdout := req.URL.Query().Get("stdout")
+		assert.Equal(t, "true", stdout)
+
+		stderr := req.URL.Query().Get("stderr")
+		assert.Equal(t, "false", stderr)
 	})
 }
