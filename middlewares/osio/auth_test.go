@@ -168,7 +168,7 @@ func TestRemoveUserID(t *testing.T) {
 	})
 
 	t.Run("UserID as part of url produced by rh-che via kubernetes client for 'event' calls", func(t *testing.T) {
-		pathWithParams := "/api/v1/anamespaces/namespace-che/events\u0026watch=true"
+		pathWithParams := "/api/v1/namespaces/namespace-che/events\u0026watch=true"
 		adhocURL := fmt.Sprintf("http://f8osoproxy.com?%s=%s%s", UserIDParam, userID, pathWithParams)
 		req, _ := http.NewRequest(http.MethodGet, adhocURL, nil)
 		removeUserID(req)
@@ -176,8 +176,11 @@ func TestRemoveUserID(t *testing.T) {
 		actualUserID := req.URL.Query().Get(UserIDParam)
 		assert.Empty(t, actualUserID)
 
-		assert.Equal(t, pathWithParams, req.RequestURI)
-		assert.Equal(t, "http://f8osoproxy.com/api/v1/anamespaces/namespace-che/events\u0026watch=true", req.URL.String())
+		watchParam := req.URL.Query().Get("watch")
+		assert.Equal(t, watchParam, "true")
+
+		assert.Equal(t, "/api/v1/namespaces/namespace-che/events?watch=true", req.RequestURI)
+		assert.Equal(t, "http://f8osoproxy.com/api/v1/namespaces/namespace-che/events?watch=true", req.URL.String())
 	})
 
 	t.Run("UserID as part of url produced by rh-che via kubernetes client for 'exec' calls", func(t *testing.T) {
@@ -203,7 +206,14 @@ func TestRemoveUserID(t *testing.T) {
 		actualUserID := req.URL.Query().Get(UserIDParam)
 		assert.Empty(t, actualUserID)
 
-		assert.Equal(t, pathWithParams, req.URL.Path)
+		watchParam := req.URL.Query().Get("watch")
+		assert.Equal(t, watchParam, "true")
+
+		fieldSelector := req.URL.Query().Get("fieldSelector")
+		assert.Equal(t, "metadata.name=rm-workspace41v9261pdzqs84c4", fieldSelector)
+
+		assert.Equal(t, "/api/v1/namespaces/osio-ci-ee1-preview-che/pods?fieldSelector=metadata.name%3Drm-workspace41v9261pdzqs84c4\u0026watch=true", req.RequestURI)
+		assert.Equal(t, "fieldSelector=metadata.name%3Drm-workspace41v9261pdzqs84c4\u0026watch=true", req.URL.RawQuery)
 	})
 
 	t.Run("UserID as part of url produced by rh-che via kubernetes client for pod 'watch' calls", func(t *testing.T) {
@@ -214,6 +224,15 @@ func TestRemoveUserID(t *testing.T) {
 
 		actualUserID := req.URL.Query().Get(UserIDParam)
 		assert.Empty(t, actualUserID)
+
+		watchParam := req.URL.Query().Get("watch")
+		assert.Equal(t, watchParam, "true")
+
+		fieldSelector := req.URL.Query().Get("fieldSelector")
+		assert.Equal(t, "metadata.name=workspacertz5iv86ez29v6bp.dockerimage", fieldSelector)
+
+		assert.Equal(t, "/api/v1/namespaces/osio-ci-ee1-preview-che/pods?fieldSelector=metadata.name%3Dworkspacertz5iv86ez29v6bp.dockerimage\u0026watch=true", req.RequestURI)
+		assert.Equal(t, "fieldSelector=metadata.name%3Dworkspacertz5iv86ez29v6bp.dockerimage\u0026watch=true", req.URL.RawQuery)
 	})
 
 	t.Run("UserID as part of url produced by rh-che via kubernetes client for pod removal calls", func(t *testing.T) {
@@ -224,6 +243,16 @@ func TestRemoveUserID(t *testing.T) {
 
 		actualUserID := req.URL.Query().Get(UserIDParam)
 		assert.Empty(t, actualUserID)
+
+		watchParam := req.URL.Query().Get("watch")
+		assert.Equal(t, watchParam, "true")
+
+		fieldSelector := req.URL.Query().Get("fieldSelector")
+		assert.Equal(t, "metadata.name=rm-workspace41v9261pdzqs84c4", fieldSelector)
+
+		assert.Equal(t, "/api/v1/namespaces/osio-ci-ee1-preview-che/pods?fieldSelector=metadata.name%3Drm-workspace41v9261pdzqs84c4\u0026watch=true", req.RequestURI)
+		assert.Equal(t, "fieldSelector=metadata.name%3Drm-workspace41v9261pdzqs84c4\u0026watch=true", req.URL.RawQuery)
+		assert.Equal(t, "http://f8osoproxy.com/api/v1/namespaces/osio-ci-ee1-preview-che/pods?fieldSelector=metadata.name%3Drm-workspace41v9261pdzqs84c4\u0026watch=true", req.URL.String())
 	})
 
 	t.Run("UserID as part of url produced by rh-che via kubernetes client for routes calls", func(t *testing.T) {
@@ -234,6 +263,13 @@ func TestRemoveUserID(t *testing.T) {
 
 		actualUserID := req.URL.Query().Get(UserIDParam)
 		assert.Empty(t, actualUserID)
+
+		labelSelector := req.URL.Query().Get("labelSelector")
+		assert.Equal(t, "che.workspace_id=workspacertz5iv86ez29v6b", labelSelector)
+
+		assert.Equal(t, "/apis/route.openshift.io/v1/namespaces/osio-ci-ee1-preview-che/routes?labelSelector=che.workspace_id%3Dworkspacertz5iv86ez29v6b", req.RequestURI)
+		assert.Equal(t, "labelSelector=che.workspace_id%3Dworkspacertz5iv86ez29v6b", req.URL.RawQuery)
+		assert.Equal(t, "http://f8osoproxy.com/apis/route.openshift.io/v1/namespaces/osio-ci-ee1-preview-che/routes?labelSelector=che.workspace_id%3Dworkspacertz5iv86ez29v6b", req.URL.String())
 	})
 
 	t.Run("UserID as part of url produced by rh-che via kubernetes client for services calls", func(t *testing.T) {
@@ -244,6 +280,13 @@ func TestRemoveUserID(t *testing.T) {
 
 		actualUserID := req.URL.Query().Get(UserIDParam)
 		assert.Empty(t, actualUserID)
+
+		labelSelector := req.URL.Query().Get("labelSelector")
+		assert.Equal(t, "che.workspace_id=workspacertz5iv86ez29v6bp", labelSelector)
+
+		assert.Equal(t, "/api/v1/namespaces/osio-ci-ee1-preview-che/services?labelSelector=che.workspace_id%3Dworkspacertz5iv86ez29v6bp", req.RequestURI)
+		assert.Equal(t, "labelSelector=che.workspace_id%3Dworkspacertz5iv86ez29v6bp", req.URL.RawQuery)
+		assert.Equal(t, "http://f8osoproxy.com/api/v1/namespaces/osio-ci-ee1-preview-che/services?labelSelector=che.workspace_id%3Dworkspacertz5iv86ez29v6bp", req.URL.String())
 	})
 
 	t.Run("UserID as part of url produced by rh-che via kubernetes client for pod 'watch' calls", func(t *testing.T) {
@@ -254,5 +297,32 @@ func TestRemoveUserID(t *testing.T) {
 
 		actualUserID := req.URL.Query().Get(UserIDParam)
 		assert.Empty(t, actualUserID)
+
+		watchParam := req.URL.Query().Get("watch")
+		assert.Equal(t, watchParam, "true")
+
+		fieldSelector := req.URL.Query().Get("fieldSelector")
+		assert.Equal(t, "metadata.name=rm-workspace41v9261pdzqs84c4", fieldSelector)
+
+		assert.Equal(t, "/api/v1/namespaces/osio-ci-ee1-preview-che/pods?fieldSelector=metadata.name%3Drm-workspace41v9261pdzqs84c4\u0026watch=true", req.RequestURI)
+		assert.Equal(t, "fieldSelector=metadata.name%3Drm-workspace41v9261pdzqs84c4\u0026watch=true", req.URL.RawQuery)
+		assert.Equal(t, "http://f8osoproxy.com/api/v1/namespaces/osio-ci-ee1-preview-che/pods?fieldSelector=metadata.name%3Drm-workspace41v9261pdzqs84c4\u0026watch=true", req.URL.String())
+	})
+
+	t.Run("UserID as part of url produced by rh-che via kubernetes client for pod with lablel selector", func(t *testing.T) {
+		pathWithParams := "/api/v1/namespaces/osio-ci-ee1-preview-che/pods\u0026labelSelector=che.workspace_id%3Dworkspacew9zk6m4xggf0pbtk"
+		adhocURL := fmt.Sprintf("http://f8osoproxy.com/?%s=%s%s", UserIDParam, userID, pathWithParams)
+		req, _ := http.NewRequest(http.MethodGet, adhocURL, nil)
+		removeUserID(req)
+
+		actualUserID := req.URL.Query().Get(UserIDParam)
+		assert.Empty(t, actualUserID)
+
+		labelSelector := req.URL.Query().Get("labelSelector")
+		assert.Equal(t, "che.workspace_id=workspacew9zk6m4xggf0pbtk", labelSelector)
+
+		assert.Equal(t, "/api/v1/namespaces/osio-ci-ee1-preview-che/pods?labelSelector=che.workspace_id%3Dworkspacew9zk6m4xggf0pbtk", req.RequestURI)
+		assert.Equal(t, "labelSelector=che.workspace_id%3Dworkspacew9zk6m4xggf0pbtk", req.URL.RawQuery)
+		assert.Equal(t, "http://f8osoproxy.com/api/v1/namespaces/osio-ci-ee1-preview-che/pods?labelSelector=che.workspace_id%3Dworkspacew9zk6m4xggf0pbtk", req.URL.String())
 	})
 }
