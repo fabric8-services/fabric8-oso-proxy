@@ -266,27 +266,44 @@ func removeUserID(req *http.Request) {
 	if req.Header.Get(UserIDHeader) != "" {
 		req.Header.Del(UserIDHeader)
 	}
-	if req.URL.Query().Get(UserIDParam) != "" {
-		userID := req.URL.Query().Get(UserIDParam)
+	userID := req.URL.Query().Get(UserIDParam)
+	if userID != "" {
+		// case when userID query parameter contains path e.g.
 		if strings.Contains(userID, "/") {
-			q := req.URL.Query()
-			q.Del(UserIDParam)
 
+			// Processing query params
+			rawQuery := req.URL.RawQuery;
+			extraPath := ""
+			if strings.Contains(rawQuery, "?") {
+				queryIndex := strings.LastIndex(rawQuery, "?")
+				rawQuery = rawQuery[queryIndex+1:]
+			} else if strings.Contains(rawQuery, "&") {
+				ampersandIndex := strings.Index(rawQuery, "&")
+				extraPath = rawQuery[ampersandIndex:]
+				rawQuery = ""
+			} else {
+				rawQuery = ""
+			}
+			req.URL.RawQuery = rawQuery
+
+
+			// Removing query params from userID
 			if strings.Contains(userID, "?") {
 				indexOfQuery := strings.Index(userID, "?")
-
-				// adding missing query parameters to request URL query
-				missingQueryParam := userID[indexOfQuery+1:]
-				keyValue := strings.Split(missingQueryParam, "=")
-				q.Add(keyValue[0], keyValue[1])
-
-				// removing query params from userID
 				userID = userID[:indexOfQuery]
 			}
 
-			req.URL.RawQuery = q.Encode()
-			startInd := strings.Index(userID, "/")
-			req.URL.Path = userID[startInd:]
+			// obtaining path
+			indexOfFirstSlash := strings.Index(userID, "/")
+			path := userID[indexOfFirstSlash:]
+
+			if extraPath != "" {
+				path += extraPath
+			}
+
+			req.URL.Path = path
+
+			// setting requestURI
 			req.RequestURI = req.URL.RequestURI()
 		} else {
 			q := req.URL.Query()
