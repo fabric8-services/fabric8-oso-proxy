@@ -25,10 +25,16 @@ func (s *OSIOMiddlewareSuite) TestOSIO(c *check.C) {
 	os.Setenv("SERVICE_ACCOUNT_ID", "any-id")
 	os.Setenv("SERVICE_ACCOUNT_SECRET", "anysecret")
 	os.Setenv("AUTH_TOKEN_KEY", "secret")
-	witServer := common.StartOSIOServer(9090, common.ServeTenantRequest)
-	defer witServer.Close()
-	authServer := common.StartOSIOServer(9091, common.ServerAuthRequest(serverMiddlewareCluster))
+	tenantServer := common.StartServer(9090, common.ServeTenantRequest)
+	defer tenantServer.Close()
+	authServer := common.StartServer(9091, common.ServerAuthRequest(serverMiddlewareCluster))
 	defer authServer.Close()
+
+	// Start OSIO servers
+	ts1 := common.StartServer(8081, nil)
+	defer ts1.Close()
+	ts2 := common.StartServer(8082, nil)
+	defer ts2.Close()
 
 	// Start Traefik
 	cmd, display := s.traefikCmd(withConfigFile("fixtures/osio_middleware_config.toml"))
@@ -37,18 +43,12 @@ func (s *OSIOMiddlewareSuite) TestOSIO(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer cmd.Process.Kill()
 
-	// Start OSIO servers
-	ts1 := common.StartOSIOServer(8081, nil)
-	defer ts1.Close()
-	ts2 := common.StartOSIOServer(8082, nil)
-	defer ts2.Close()
-
 	// Make some requests
 	req, _ := http.NewRequest("GET", "http://127.0.0.1:8000/test", nil)
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", common.TestTokenManager.ToTokenString(jwt.MapClaims{"sub": "1111"})))
 	res, err := try.Response(req, 500*time.Millisecond)
 	c.Assert(err, check.IsNil)
-	log.Printf("req1 res.StatusCode=%d", res.StatusCode)
+	log.Printf("Test server found, res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 200)
 	checkPort(c, res, 8081)
 
@@ -56,7 +56,7 @@ func (s *OSIOMiddlewareSuite) TestOSIO(c *check.C) {
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", common.TestTokenManager.ToTokenString(jwt.MapClaims{"sub": "2222"})))
 	res, err = try.Response(req, 500*time.Millisecond)
 	c.Assert(err, check.IsNil)
-	log.Printf("req2 res.StatusCode=%d", res.StatusCode)
+	log.Printf("Test server found, res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 200)
 	checkPort(c, res, 8082)
 
@@ -64,28 +64,28 @@ func (s *OSIOMiddlewareSuite) TestOSIO(c *check.C) {
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", common.TestTokenManager.ToTokenString(jwt.MapClaims{"sub": "3333"})))
 	res, err = try.Response(req, 500*time.Millisecond)
 	c.Assert(err, check.IsNil)
-	log.Printf("req3 res.StatusCode=%d", res.StatusCode)
+	log.Printf("Test no server found, res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 404)
 
 	req, _ = http.NewRequest("GET", "http://127.0.0.1:8000/test", nil)
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", common.TestTokenManager.ToTokenString(jwt.MapClaims{"sub": "4444"})))
 	res, err = try.Response(req, 500*time.Millisecond)
 	c.Assert(err, check.IsNil)
-	log.Printf("req4 res.StatusCode=%d", res.StatusCode)
+	log.Printf("Test user not authorized, res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 401)
 
 	req, _ = http.NewRequest("GET", "http://127.0.0.1:8000/test", nil)
 	// req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", common.TestTokenManager.ToTokenString(jwt.MapClaims{"sub": "1111"})))
 	res, err = try.Response(req, 500*time.Millisecond)
 	c.Assert(err, check.IsNil)
-	log.Printf("req5 res.StatusCode=%d", res.StatusCode)
+	log.Printf("Test no Authorization found, res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 401)
 
 	req, _ = http.NewRequest("OPTIONS", "http://127.0.0.1:8000/test", nil)
 	// req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", common.TestTokenManager.ToTokenString(jwt.MapClaims{"sub": "1111"})))
 	res, err = try.Response(req, 500*time.Millisecond)
 	c.Assert(err, check.IsNil)
-	log.Printf("req6 res.StatusCode=%d", res.StatusCode)
+	log.Printf("Test default server found for OPTIONS request, res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 200)
 	checkPort(c, res, 8081)
 }

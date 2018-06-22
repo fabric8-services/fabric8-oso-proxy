@@ -1,4 +1,4 @@
-logLevel = "ERROR"
+logLevel = "DEBUG"
 defaultEntryPoints = ["http"]
 [entryPoints]
   [entryPoints.http]
@@ -13,5 +13,3 @@ entryPoint = "traefik"
 
 [osio]
 refreshSeconds = 3
-clusterAPI = "http://127.0.0.1:9091/api/clusters"
-tokenAPI = "http://127.0.0.1:9091/api/token"

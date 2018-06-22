@@ -272,14 +272,14 @@ func (gc *GlobalConfiguration) SetEffectiveConfiguration(configFile string) {
 		if len(saSecret) <= 0 {
 			panic("Missing SERVICE_ACCOUNT_SECRET")
 		}
-		authURL := os.Getenv("AUTH_URL")
-		if len(gc.OSIO.TokenAPI) <= 0 {
-			gc.OSIO.TokenAPI = authURL + "/token"
-		}
-		if len(gc.OSIO.ClusterAPI) <= 0 {
-			gc.OSIO.ClusterAPI = authURL + "/clusters"
-		}
 		gc.OSIO.ServiceAccountSecret = saSecret
+
+		authURL := os.Getenv("AUTH_URL")
+		if len(authURL) <= 0 {
+			panic("Missing AUTH_URL")
+		}
+		gc.OSIO.TokenURL = authURL + "/token"
+		gc.OSIO.ClustersURL = authURL + "/clusters"
 	}
 }
 
