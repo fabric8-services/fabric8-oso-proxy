@@ -1,4 +1,4 @@
-logLevel = "ERROR"
+logLevel = "DEBUG"
 defaultEntryPoints = ["http"]
 [entryPoints]
   [entryPoints.http]
@@ -8,10 +8,17 @@ defaultEntryPoints = ["http"]
 
 checkNewVersion = false
 
+[accessLog]
+format = "json"
+  [accessLog.fields.headers]
+  defaultMode = "keep"
+    [accessLog.fields.names]
+    "RequestLine" = "drop"    
+    [accessLog.fields.headers.names]
+    "Authorization" = "redact"
+
 [api]
 entryPoint = "traefik"
 
 [osio]
 refreshSeconds = 3
-clusterAPI = "http://127.0.0.1:9091/api/clusters"
-tokenAPI = "http://127.0.0.1:9091/api/token"

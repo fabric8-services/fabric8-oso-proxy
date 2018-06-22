@@ -17,6 +17,15 @@ const (
 	UserIDParam   = "identity_id"
 )
 
+type RequestType string
+
+const (
+	api     RequestType = "api"
+	metrics RequestType = "metrics"
+	console RequestType = "console"
+	logs    RequestType = "logs"
+)
+
 const (
 	// service maps to token type, if not a service token then it maps to UserToken
 	CheToken  TokenType = "che"
@@ -49,8 +58,8 @@ type SecretLocator interface {
 type TokenTypeLocator func(string) (TokenType, error)
 
 type cacheData struct {
-	Token    string
-	Location string
+	Token     string
+	Namespace namespace
 }
 
 type OSIOAuth struct {
@@ -100,50 +109,48 @@ func NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret string) *OSIOAuth {
 
 func cacheResolverByID(tenantLocator TenantLocator, tokenLocator TenantTokenLocator, srvAccTokenLocator SrvAccTokenLocator, secretLocator SecretLocator, token string, tokenType TokenType, userID string) Resolver {
 	return func() (interface{}, error) {
-		ns, err := tenantLocator.GetTenantById(token, tokenType, userID)
+		namespace, err := tenantLocator.GetTenantById(token, tokenType, userID)
 		if err != nil {
 			log.Errorf("Failed to locate tenant, %v", err)
 			return cacheData{}, err
 		}
-		loc := ns.ClusterURL
 		osoProxySAToken, err := srvAccTokenLocator()
 		if err != nil {
 			log.Errorf("Failed to locate service account token, %v", err)
 			return cacheData{}, err
 		}
-		clusterToken, err := tokenLocator.GetTokenWithSAToken(osoProxySAToken, loc)
+		clusterToken, err := tokenLocator.GetTokenWithSAToken(osoProxySAToken, namespace.ClusterURL)
 		if err != nil {
 			log.Errorf("Failed to locate cluster token, %v", err)
 			return cacheData{}, err
 		}
-		secretName, err := secretLocator.GetName(ns.ClusterURL, clusterToken, ns.Name, ns.Type)
+		secretName, err := secretLocator.GetName(namespace.ClusterURL, clusterToken, namespace.Name, namespace.Type)
 		if err != nil {
 			log.Errorf("Failed to locate secret name, %v", err)
 			return cacheData{}, err
 		}
-		osoToken, err := secretLocator.GetSecret(ns.ClusterURL, clusterToken, ns.Name, secretName)
+		osoToken, err := secretLocator.GetSecret(namespace.ClusterURL, clusterToken, namespace.Name, secretName)
 		if err != nil {
 			log.Errorf("Failed to get secret, %v", err)
 			return cacheData{}, err
 		}
-		return cacheData{Location: loc, Token: osoToken}, nil
+		return cacheData{Namespace: namespace, Token: osoToken}, nil
 	}
 }
 
 func cacheResolverByToken(tenantLocator TenantLocator, tokenLocator TenantTokenLocator, token string, tokenType TokenType) Resolver {
 	return func() (interface{}, error) {
-		ns, err := tenantLocator.GetTenant(token, tokenType)
+		namespace, err := tenantLocator.GetTenant(token, tokenType)
 		if err != nil {
 			log.Errorf("Failed to locate tenant, %v", err)
 			return cacheData{}, err
 		}
-		loc := ns.ClusterURL
-		osoToken, err := tokenLocator.GetTokenWithUserToken(token, loc)
+		osoToken, err := tokenLocator.GetTokenWithUserToken(token, namespace.ClusterURL)
 		if err != nil {
 			log.Errorf("Failed to locate token, %v", err)
 			return cacheData{}, err
 		}
-		return cacheData{Location: loc, Token: osoToken}, nil
+		return cacheData{Namespace: namespace, Token: osoToken}, nil
 	}
 }
 
@@ -173,13 +180,13 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 	if a.RequestTenantLocation != nil {
 
 		if r.Method != "OPTIONS" {
+			// get token and token type
 			token, err := getToken(r)
 			if err != nil {
 				log.Errorf("Token not found, %v", err)
 				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-
 			tokenType, err := a.RequestTokenType(token)
 			if err != nil {
 				log.Errorf("Invalid token, %v", err)
@@ -187,6 +194,7 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				return
 			}
 
+			// retrieve cache data
 			var cached cacheData
 			if tokenType != UserToken {
 				userID := extractUserID(r)
@@ -199,23 +207,82 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 			} else {
 				cached, err = a.resolveByToken(token, tokenType)
 			}
-
 			if err != nil {
-				log.Errorf("Cache resole failed, %v", err)
+				log.Errorf("Cache resolve failed, %v", err)
 				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 
-			r.Header.Set("Target", cached.Location)
-			r.Header.Set("Authorization", "Bearer "+cached.Token)
-			if tokenType != UserToken {
-				removeUserID(r)
+			// routing or redirect
+			reqType := getRequestType(r)
+			stripRequestPathPrefix(r, reqType.path())
+			targetURL := normalizeURL(reqType.getTargetURL(cached.Namespace))
+			if reqType.isRedirectRequest() {
+				redirectURL := reqType.getRedirectURL(targetURL, r)
+				http.Redirect(rw, r, redirectURL, http.StatusTemporaryRedirect)
+				return
+			} else {
+				r.Header.Set("Target", targetURL)
+				r.Header.Set("Authorization", "Bearer "+cached.Token)
+				if tokenType != UserToken {
+					removeUserID(r)
+				}
 			}
 		} else {
 			r.Header.Set("Target", "default")
 		}
 	}
 	next(rw, r)
+}
+
+func getRequestType(req *http.Request) RequestType {
+	reqPath := req.URL.Path
+	switch {
+	case strings.HasPrefix(reqPath, api.path()):
+		return api
+	case strings.HasPrefix(reqPath, metrics.path()):
+		return metrics
+	case strings.HasPrefix(reqPath, console.path()):
+		return console
+	case strings.HasPrefix(reqPath, logs.path()):
+		return logs
+	default:
+		return api
+	}
+}
+
+func (r RequestType) path() string {
+	return "/" + string(r)
+}
+
+func (r RequestType) getTargetURL(ns namespace) string {
+	switch r {
+	case api:
+		return ns.ClusterURL
+	case metrics:
+		return ns.ClusterMetricsURL
+	case console:
+		return ns.ClusterConsoleURL
+	case logs:
+		return ns.ClusterLoggingURL
+	default:
+		return ns.ClusterURL
+	}
+}
+
+func (r RequestType) isRedirectRequest() bool {
+	if r == console || r == logs {
+		return true
+	}
+	return false
+}
+
+func (r RequestType) getRedirectURL(targetURL string, req *http.Request) string {
+	redirectURL := targetURL + req.URL.Path
+	if r == logs && req.URL.RawQuery != "" {
+		redirectURL = strings.Join([]string{redirectURL, "?", req.URL.RawQuery}, "")
+	}
+	return redirectURL
 }
 
 func getToken(r *http.Request) (string, error) {
@@ -246,6 +313,25 @@ func cacheKey(plainKey string) string {
 	h.Write([]byte(plainKey))
 	hash := hex.EncodeToString(h.Sum(nil))
 	return hash
+}
+
+func stripRequestPathPrefix(req *http.Request, prefix string) {
+	if strings.HasPrefix(req.URL.Path, prefix) {
+		req.URL.Path = stripPrefix(req.URL.Path, prefix)
+		req.RequestURI = req.URL.RequestURI()
+	}
+}
+
+func stripPrefix(s, prefix string) string {
+	return ensureLeadingSlash(strings.TrimPrefix(s, prefix))
+}
+
+func ensureLeadingSlash(str string) string {
+	return "/" + strings.TrimPrefix(str, "/")
+}
+
+func normalizeURL(url string) string {
+	return strings.TrimSuffix(url, "/")
 }
 
 func extractUserID(req *http.Request) string {

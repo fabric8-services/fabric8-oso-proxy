@@ -23,7 +23,7 @@ var keyID = "test-key"
 
 var TestTokenManager = NewTestTokenManager()
 
-func StartOSIOServer(port int, handler func(w http.ResponseWriter, r *http.Request)) (ts *httptest.Server) {
+func StartServer(port int, handler func(w http.ResponseWriter, r *http.Request)) (ts *httptest.Server) {
 	if handler == nil {
 		handler = func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "port=%d", port)
@@ -47,14 +47,18 @@ func ServeTenantRequest(rw http.ResponseWriter, req *http.Request) {
 	jwtToken := TestTokenManager.ToJwtToken(token)
 	sub, _ := jwtToken.Claims.(jwt.MapClaims)["sub"].(string)
 
-	host := ""
+	metricsHost := ""
+	apiHost := ""
 	switch {
 	case strings.HasSuffix(sub, "1111"):
-		host = "http://127.0.0.1:8081"
+		metricsHost = "http://127.0.0.1:7071"
+		apiHost = "http://127.0.0.1:8081"
 	case strings.HasSuffix(sub, "2222"):
-		host = "http://127.0.0.1:8082"
+		metricsHost = "http://127.0.0.1:7072"
+		apiHost = "http://127.0.0.1:8082"
 	case strings.HasSuffix(sub, "3333"):
-		host = "http://127.0.0.1:8083" // :8083 is not present in toml file
+		metricsHost = "http://127.0.0.1:7073"
+		apiHost = "http://127.0.0.1:8083" // :8083 is not present in toml file
 	case strings.HasSuffix(sub, "4444"):
 		rw.WriteHeader(http.StatusNotFound)
 		return
@@ -65,14 +69,15 @@ func ServeTenantRequest(rw http.ResponseWriter, req *http.Request) {
 			"attributes": {
 				"namespaces": [
 					{
-						"name": "john-preview",
+						"name": "myuser-preview",
 						"type": "user",
-						"cluster-url": "%s/"
+						"cluster-metrics-url": "%s",
+						"cluster-url": "%s"
 					}
 				]
 			}
 		}
-	}`, host)
+	}`, metricsHost, apiHost)
 	rw.Write([]byte(res))
 }
 
@@ -101,14 +106,14 @@ func TwoClusterData() string {
 				"api-url": "http://127.0.0.1:8081/",
 				"app-dns": "8a09.starter-us-east-2.openshiftapps.com",
 				"console-url": "https://console.starter-us-east-2.openshift.com/console/",
-				"metrics-url": "https://metrics.starter-us-east-2.openshift.com/",
+				"metrics-url": "http://127.0.0.1:7071/",
 				"name": "us-east-2"
 			},
 			{
 				"api-url": "http://127.0.0.1:8082/",
 				"app-dns": "b542.starter-us-east-2a.openshiftapps.com",
 				"console-url": "https://console.starter-us-east-2a.openshift.com/console/",
-				"metrics-url": "https://metrics.starter-us-east-2a.openshift.com/",
+				"metrics-url": "http://127.0.0.1:7072/",
 				"name": "us-east-2a"
 			}
 		]
@@ -124,7 +129,7 @@ func OneClusterData() string {
 				"api-url": "http://localhost:8081/",
 				"app-dns": "8a09.starter-us-east-2.openshiftapps.com",
 				"console-url": "https://console.starter-us-east-2.openshift.com/console/",
-				"metrics-url": "https://metrics.starter-us-east-2.openshift.com/",
+				"metrics-url": "http://127.0.0.1:7071/",
 				"name": "us-east-2"
 			}
 		]
