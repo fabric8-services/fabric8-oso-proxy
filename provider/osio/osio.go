@@ -20,6 +20,12 @@ const (
 	authorization = "Authorization"
 )
 
+// list of cluster hard coded to be filtered out when choosing default backend
+var restrictedDefaultBackends = map[string]bool{
+	normalizeURL("https://api.starter-us-east-1a.openshift.com"): true,
+	normalizeURL("https://api.starter-us-east-1b.openshift.com"): true,
+}
+
 // Provider holds configurations of the provider.
 type Provider struct {
 	provider.BaseProvider `mapstructure:",squash" export:"true"`
@@ -162,13 +168,13 @@ func (p *Provider) loadRules(clusterResp *clusterResponse) *types.Configuration 
 		}
 	}
 	if !defaultBackendExist {
-		if len(clusterResp.Clusters) > 0 {
-			p.defaultBackendURL = getDefaultURL(clusterResp.Clusters[0])
-		}
+		p.defaultBackendURL = findDefaultURL(clusterResp.Clusters)
 	}
 	if p.defaultBackendURL != "" {
 		config.Frontends["default"] = createFrontend("default", "default")
 		config.Backends["default"] = createBackend(p.defaultBackendURL)
+	} else {
+		log.Error("default backend not configured")
 	}
 
 	return config
@@ -186,6 +192,16 @@ func createBackend(clusterURL string) *types.Backend {
 	servers := make(map[string]types.Server)
 	servers["server1"] = types.Server{URL: clusterURL}
 	return &types.Backend{Servers: servers}
+}
+
+func findDefaultURL(clusters []clusterData) string {
+	for _, cluster := range clusters {
+		clusterURL := getDefaultURL(cluster)
+		if !restrictedDefaultBackends[normalizeURL(clusterURL)] {
+			return clusterURL
+		}
+	}
+	return ""
 }
 
 func normalizeURL(url string) string {

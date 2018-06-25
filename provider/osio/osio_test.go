@@ -128,6 +128,49 @@ func TestCreateBackend(t *testing.T) {
 	assert.Equal(t, url, server1.URL, "Mis-match server url, want:%s, got:%s", url, server1.URL)
 }
 
+func TestFindDefaultURL(t *testing.T) {
+	tables := []struct {
+		inputClusters      []clusterData
+		expectedDefaultURL string
+	}{
+		{
+			[]clusterData{
+				{APIURL: "https://api.starter-us-east-1a.openshift.com/"},
+				{APIURL: "https://api.starter-us-east-1b.openshift.com/"},
+				{APIURL: "https://api.starter-us-east-2a.openshift.com/"},
+				{APIURL: "https://api.starter-us-east-2b.openshift.com/"},
+			},
+			"https://api.starter-us-east-2a.openshift.com/",
+		},
+		{
+			[]clusterData{
+				{APIURL: "https://api.starter-us-east-2a.openshift.com/"},
+				{APIURL: "https://api.starter-us-east-1a.openshift.com/"},
+				{APIURL: "https://api.starter-us-east-1b.openshift.com/"},
+			},
+			"https://api.starter-us-east-2a.openshift.com/",
+		},
+		{
+			[]clusterData{
+				{APIURL: "https://api.starter-us-east-1a.openshift.com/"},
+				{APIURL: "https://api.starter-us-east-1b.openshift.com/"},
+			},
+			"",
+		},
+		{
+			[]clusterData{
+				{APIURL: "https://api.starter-us-east-2a.openshift.com/"},
+			},
+			"https://api.starter-us-east-2a.openshift.com/",
+		},
+	}
+
+	for _, table := range tables {
+		actualDefaultURL := findDefaultURL(table.inputClusters)
+		assert.Equal(t, table.expectedDefaultURL, actualDefaultURL, "Mis-match default url, want:%s, got:%s", table.expectedDefaultURL, actualDefaultURL)
+	}
+}
+
 func checkConfig(t *testing.T, config *types.Configuration, ruleCount int) {
 	require.NotNil(t, config)
 	require.NotNil(t, config.Frontends)
