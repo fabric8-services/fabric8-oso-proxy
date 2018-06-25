@@ -9,8 +9,8 @@ import (
 )
 
 type Client interface {
-	CallTokenAPI(tokenAPI string, tokenReq *TokenRequest) (*TokenResponse, error)
-	CallClusterAPI(clusterAPIURL string, tokenResp *TokenResponse) (*clusterResponse, error)
+	GetToken(tokenURL string, tokenReq *TokenRequest) (*TokenResponse, error)
+	GetClusters(clustersURL string, tokenResp *TokenResponse) (*clusterResponse, error)
 }
 
 func NewClient() Client {
@@ -45,7 +45,7 @@ type clusterResponse struct {
 	Clusters []clusterData `json:"data"`
 }
 
-func (client *authClient) CallTokenAPI(tokenAPI string, tokenReq *TokenRequest) (*TokenResponse, error) {
+func (client *authClient) GetToken(tokenAPI string, tokenReq *TokenRequest) (*TokenResponse, error) {
 	reqBody := new(bytes.Buffer)
 	err := json.NewEncoder(reqBody).Encode(tokenReq)
 	if err != nil {
@@ -60,7 +60,7 @@ func (client *authClient) CallTokenAPI(tokenAPI string, tokenReq *TokenRequest) 
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Call to token api failed, code:%d, error:%s", resp.StatusCode, resp.Status)
+		return nil, fmt.Errorf("Failed to get Token, code:%d, error:%s", resp.StatusCode, resp.Status)
 	}
 
 	defer resp.Body.Close()
@@ -72,8 +72,8 @@ func (client *authClient) CallTokenAPI(tokenAPI string, tokenReq *TokenRequest) 
 	return tokenResp, nil
 }
 
-func (client *authClient) CallClusterAPI(clusterAPIURL string, tokenResp *TokenResponse) (*clusterResponse, error) {
-	req, err := http.NewRequest(http.MethodGet, clusterAPIURL, nil)
+func (client *authClient) GetClusters(clustersURL string, tokenResp *TokenResponse) (*clusterResponse, error) {
+	req, err := http.NewRequest(http.MethodGet, clustersURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (client *authClient) CallClusterAPI(clusterAPIURL string, tokenResp *TokenR
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Cluster API call failed with code:%d, error:%s", resp.StatusCode, resp.Status)
+		return nil, fmt.Errorf("Failed to get Clusters details, code:%d, error:%s", resp.StatusCode, resp.Status)
 	}
 
 	defer resp.Body.Close()

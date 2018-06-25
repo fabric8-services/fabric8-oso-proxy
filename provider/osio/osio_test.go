@@ -25,11 +25,11 @@ func (fp *testProvider) fetchToken() error {
 type testClient struct {
 }
 
-func (fc *testClient) CallTokenAPI(tokenAPI string, tokenReq *TokenRequest) (*TokenResponse, error) {
+func (fc *testClient) GetToken(tokenAPI string, tokenReq *TokenRequest) (*TokenResponse, error) {
 	return &TokenResponse{"1111", "bearer"}, nil
 }
 
-func (fc *testClient) CallClusterAPI(clusterAPIURL string, tokenResp *TokenResponse) (*clusterResponse, error) {
+func (fc *testClient) GetClusters(clusterAPIURL string, tokenResp *TokenResponse) (*clusterResponse, error) {
 	return &clusterResponse{}, nil
 }
 
@@ -47,50 +47,61 @@ func TestScheduleConfigPull(t *testing.T) {
 func TestLoadRules(t *testing.T) {
 	provider := &Provider{}
 	clusters := []clusterData{
-		{APIURL: "https://api.starter-us-east-2.openshift.com"},
+		{
+			APIURL:     "https://api.starter-us-east-2.openshift.com",
+			MetricsURL: "https://metrics.starter-us-east-2a.openshift.com",
+		},
 	}
 	clusterResp := &clusterResponse{Clusters: clusters}
 	config := provider.loadRules(clusterResp)
-	checkConfig(t, config, 2)
+	checkConfig(t, config, 3)
 }
 func TestLoadRulesDefaultChange(t *testing.T) {
 	provider := &Provider{}
 
 	tables := []struct {
-		clusters      []clusterData
-		expectedRules int
-		expectedURL   string
+		clusters           []clusterData
+		expectedRules      int
+		expectedDefaultURL string
 	}{
 		{
 			[]clusterData{
-				{APIURL: "http://localhost:9090"},
-				{APIURL: "http://localhost:9091"},
+				{APIURL: "http://api.server1.com", MetricsURL: "http://metrics.server1.com"},
+				{APIURL: "http://api.server2.com", MetricsURL: "http://metrics.server2.com"},
 			},
-			3,
-			"http://localhost:9090",
+			5,
+			"http://api.server1.com",
 		},
 		{
 			[]clusterData{
-				{APIURL: "http://localhost:9091"},
-				{APIURL: "http://localhost:9092"},
+				{APIURL: "http://api.server2.com", MetricsURL: "http://metrics.server2.com"},
+				{APIURL: "http://api.server3.com", MetricsURL: "http://metrics.server3.com"},
 			},
-			3,
-			"http://localhost:9091",
+			5,
+			"http://api.server2.com",
 		},
 		{
 			[]clusterData{
-				{APIURL: "http://localhost:9093"},
-				{APIURL: "http://localhost:9091"},
+				{APIURL: "http://api.server2.com", MetricsURL: "http://metrics.server2.com"},
+				{APIURL: "http://api.server3.com", MetricsURL: "http://metrics.server3.com"},
 			},
-			3,
-			"http://localhost:9091",
+			5,
+			"http://api.server2.com",
+		},
+		{
+			[]clusterData{
+				{APIURL: "http://api.server3.com", MetricsURL: "http://metrics.server3.com"},
+				{APIURL: "http://api.server2.com", MetricsURL: "http://metrics.server2.com"},
+			},
+			5,
+			"http://api.server2.com",
 		},
 	}
 
 	for _, table := range tables {
 		config := provider.loadRules(&clusterResponse{table.clusters})
 		checkConfig(t, config, table.expectedRules)
-		checkDefaultBackendURL(t, config, table.expectedURL)
+		checkDefaultBackendURL(t, config, table.expectedDefaultURL)
 	}
 }
 
@@ -103,7 +114,7 @@ func TestCreateFrontend(t *testing.T) {
 	assert.Equal(t, 1, len(actual.Routes), "Mis-match no of routes, want:%d, got:%d", 1, len(actual.Routes))
 	routes1 := actual.Routes["test_1"]
 	require.NotZero(t, routes1)
-	assert.Contains(t, routes1.Rule, "HeadersRegexp:Target")
+	assert.Contains(t, routes1.Rule, "Headers:Target")
 	assert.Contains(t, routes1.Rule, url)
 }
 func TestCreateBackend(t *testing.T) {

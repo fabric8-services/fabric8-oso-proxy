@@ -30,6 +30,7 @@ func (t *tenantTokenLocator) GetTokenWithUserToken(userToken, location string) (
 }
 
 func (t *tenantTokenLocator) GetTokenWithSAToken(saToken, location string) (string, error) {
+	// TODO this clusterToken can be cached in sync with osio.provider
 	encryptedClusterToken, err := locateToken(t.client, t.authBaseURL, saToken, location)
 	if err != nil {
 		return "", err
@@ -50,7 +51,7 @@ func CreateSrvAccTokenLocator(authBaseURL, srvAccID, srvAccSecret string) SrvAcc
 		if saToken != "" {
 			return saToken, nil
 		}
-		res, err := client.CallTokenAPI(authBaseURL+"/token", tokenReq)
+		res, err := client.GetToken(authBaseURL+"/token", tokenReq)
 		if err != nil {
 			return "", err
 		}

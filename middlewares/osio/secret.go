@@ -9,7 +9,6 @@ import (
 	"strings"
 )
 
-// TODO: NT: ask response format
 type secretNameResponse struct {
 	SecretNames []secretName `json:"secrets"`
 }
@@ -34,9 +33,10 @@ func CreateSecretLocator(client *http.Client) SecretLocator {
 	return &secretLocator{client: client}
 }
 
-func (s *secretLocator) GetName(clusterUrl, clusterToken, nsName, nsType string) (string, error) {
-	// https://api.starter-us-east-2a.openshift.com/api/v1/namespaces/nvirani-preview-che/serviceaccounts/che
-	url := fmt.Sprintf("%sapi/v1/namespaces/%s/serviceaccounts/%s", clusterUrl, nsName, nsType)
+func (s *secretLocator) GetName(clusterURL, clusterToken, nsName, nsType string) (string, error) {
+	// https://api.starter-us-east-2a.openshift.com/api/v1/namespaces/john-preview-che/serviceaccounts/che
+	clusterURL = normalizeURL(clusterURL)
+	url := fmt.Sprintf("%s/api/v1/namespaces/%s/serviceaccounts/%s", clusterURL, nsName, nsType)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
@@ -56,9 +56,10 @@ func (s *secretLocator) GetName(clusterUrl, clusterToken, nsName, nsType string)
 	return getSecretName(r)
 }
 
-func (s *secretLocator) GetSecret(clusterUrl, clusterToken, nsName, secretName string) (string, error) {
-	// https://api.starter-us-east-2a.openshift.com/api/v1/namespaces/nvirani-preview-che/secrets/che-token-w6h6f
-	url := fmt.Sprintf("%sapi/v1/namespaces/%s/secrets/%s", clusterUrl, nsName, secretName)
+func (s *secretLocator) GetSecret(clusterURL, clusterToken, nsName, secretName string) (string, error) {
+	// https://api.starter-us-east-2a.openshift.com/api/v1/namespaces/john-preview-che/secrets/che-token-xxxx
+	clusterURL = normalizeURL(clusterURL)
+	url := fmt.Sprintf("%s/api/v1/namespaces/%s/secrets/%s", clusterURL, nsName, secretName)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
