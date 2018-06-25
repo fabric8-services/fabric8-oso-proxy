@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/cenk/backoff"
@@ -18,6 +19,12 @@ const (
 	providerName  = "osio"
 	authorization = "Authorization"
 )
+
+// list of cluster hard coded to be filtered out when choosing default backend
+var filterDefaultBackends = map[string]bool{
+	"https://api.starter-us-east-1a.openshift.com": true,
+	"https://api.starter-us-east-1b.openshift.com": true,
+}
 
 // Provider holds configurations of the provider.
 type Provider struct {
@@ -155,7 +162,7 @@ func (p *Provider) loadRules(clusterResp *clusterResponse) *types.Configuration 
 		config.Backends["backend"+configInd] = createBackend(cluster.APIURL)
 	}
 	if !defaultBackendExist {
-		p.defaultBackendURL = clusterResp.Clusters[0].APIURL
+		p.defaultBackendURL = findDefaultURL(clusterResp.Clusters)
 	}
 	if p.defaultBackendURL != "" {
 		config.Frontends["default"] = createFrontend("default", "default")
@@ -175,4 +182,21 @@ func createBackend(clusterURL string) *types.Backend {
 	servers := make(map[string]types.Server)
 	servers["server1"] = types.Server{URL: clusterURL}
 	return &types.Backend{Servers: servers}
+}
+
+func findDefaultURL(clusters []clusterData) string {
+	for _, cluster := range clusters {
+		clusterURL := cluster.APIURL
+		found := false
+		for backend := range filterDefaultBackends {
+			if strings.HasPrefix(clusterURL, backend) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return clusterURL
+		}
+	}
+	return ""
 }
