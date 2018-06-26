@@ -24,3 +24,4 @@ docker exec -t "$BUILDER-run" bash -ec 'go build -o dist/traefik ./cmd/traefik'
 docker exec -t "$BUILDER-run" bash -ec 'go test -v ./middlewares/osio/'
 docker exec -t "$BUILDER-run" bash -ec 'go test -v ./provider/osio/'
 docker exec -t "$BUILDER-run" bash -ec 'go test -v ./integration/ -integration -osio'
+
