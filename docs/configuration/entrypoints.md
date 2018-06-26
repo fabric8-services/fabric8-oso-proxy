@@ -8,12 +8,18 @@
 [entryPoints]
   [entryPoints.http]
     address = ":80"
-    whitelistSourceRange = ["10.42.0.0/16", "152.89.1.33/32", "afed:be44::/16"]
     compress = true
+
+    [entryPoints.http.whitelist]
+      sourceRange = ["10.42.0.0/16", "152.89.1.33/32", "afed:be44::/16"]
+      useXForwardedFor = true
 
     [entryPoints.http.tls]
       minVersion = "VersionTLS12"
-      cipherSuites = ["TLS_RSA_WITH_AES_256_GCM_SHA384"]
+      cipherSuites = [
+        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+        "TLS_RSA_WITH_AES_256_GCM_SHA384"
+       ]
       [[entryPoints.http.tls.certificates]]
         certFile = "path/to/my.cert"
         keyFile = "path/to/my.key"
@@ -29,6 +35,7 @@
       entryPoint = "https"
       regex = "^http://localhost/(.*)"
       replacement = "http://mydomain/$1"
+      permanent = true
 
     [entryPoints.http.auth]
       headerField = "X-WebAuth-User"
@@ -99,18 +106,30 @@ traefik:
 ```ini
 Name:foo
 Address::80
-TLS:goo,gii
+TLS:/my/path/foo.cert,/my/path/foo.key;/my/path/goo.cert,/my/path/goo.key;/my/path/hoo.cert,/my/path/hoo.key
 TLS
 CA:car
 CA.Optional:true
 Redirect.EntryPoint:https
 Redirect.Regex:http://localhost/(.*)
 Redirect.Replacement:http://mydomain/$1
+Redirect.Permanent:true
 Compress:true
-WhiteListSourceRange:10.42.0.0/16,152.89.1.33/32,afed:be44::/16
+WhiteList.SourceRange:10.42.0.0/16,152.89.1.33/32,afed:be44::/16
+WhiteList.UseXForwardedFor:true
 ProxyProtocol.TrustedIPs:192.168.0.1
-ProxyProtocol.Insecure:tue
+ProxyProtocol.Insecure:true
 ForwardedHeaders.TrustedIPs:10.0.0.3/24,20.0.0.3/24
+Auth.Basic.Users:test:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/,test2:$apr1$d9hr9HBB$4HxwgUir3HP4EsggP/QNo0
+Auth.Digest.Users:test:traefik:a2688e031edb4be6a3797f3882655c05,test2:traefik:518845800f9e2bfb1f1f740ec24f074e
+Auth.HeaderField:X-WebAuth-User
+Auth.Forward.Address:https://authserver.com/auth
+Auth.Forward.TrustForwardHeader:true
+Auth.Forward.TLS.CA:path/to/local.crt
+Auth.Forward.TLS.CAOptional:true
+Auth.Forward.TLS.Cert:path/to/foo.cert
+Auth.Forward.TLS.Key:path/to/foo.key
+Auth.Forward.TLS.InsecureSkipVerify:true
 ```
 
 ## Basic
@@ -234,9 +253,9 @@ In the example below both `snitest.com` and `snitest.org` will require client ce
 
 ### Basic Authentication
 
-Passwords can be encoded in MD5, SHA1 and BCrypt: you can use `htpasswd` to generate those ones.
+Passwords can be encoded in MD5, SHA1 and BCrypt: you can use `htpasswd` to generate them.
 
-Users can be specified directly in the toml file, or indirectly by referencing an external file;
+Users can be specified directly in the TOML file, or indirectly by referencing an external file;
  if both are provided, the two are merged, with external file contents having precedence.
 
 ```toml
@@ -251,9 +270,9 @@ Users can be specified directly in the toml file, or indirectly by referencing a
 
 ### Digest Authentication
 
-You can use `htdigest` to generate those ones.
+You can use `htdigest` to generate them.
 
-Users can be specified directly in the toml file, or indirectly by referencing an external file;
+Users can be specified directly in the TOML file, or indirectly by referencing an external file;
  if both are provided, the two are merged, with external file contents having precedence
 
 ```toml
@@ -271,7 +290,7 @@ Users can be specified directly in the toml file, or indirectly by referencing a
 This configuration will first forward the request to `http://authserver.com/auth`.
 
 If the response code is 2XX, access is granted and the original request is performed.
-Otherwise, the response from the auth server is returned.
+Otherwise, the response from the authentication server is returned.
 
 ```toml
 [entryPoints]
@@ -308,7 +327,10 @@ To specify an https entry point with a minimum TLS version, and specifying an ar
   address = ":443"
     [entryPoints.https.tls]
     minVersion = "VersionTLS12"
-    cipherSuites = ["TLS_RSA_WITH_AES_256_GCM_SHA384"]
+    cipherSuites = [
+      "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+      "TLS_RSA_WITH_AES_256_GCM_SHA384"
+    ]
       [[entryPoints.https.tls.certificates]]
       certFile = "integration/fixtures/https/snitest.com.cert"
       keyFile = "integration/fixtures/https/snitest.com.key"
@@ -334,15 +356,18 @@ Responses are compressed when:
 * And the `Accept-Encoding` request header contains `gzip`
 * And the response is not already compressed, i.e. the `Content-Encoding` response header is not already set.
 
-## Whitelisting
+## White Listing
 
-To enable IP whitelisting at the entrypoint level.
+To enable IP white listing at the entry point level.
 
 ```toml
 [entryPoints]
   [entryPoints.http]
-  address = ":80"
-  whiteListSourceRange = ["127.0.0.1/32", "192.168.1.7"]
+    address = ":80"
+
+    [entryPoints.http.whiteList]
+      sourceRange = ["127.0.0.1/32", "192.168.1.7"]
+      # useXForwardedFor = true
 ```
 
 ## ProxyProtocol

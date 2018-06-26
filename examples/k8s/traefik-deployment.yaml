@@ -28,9 +28,15 @@ spec:
       containers:
       - image: traefik
         name: traefik-ingress-lb
+        ports:
+        - name: http
+          containerPort: 80
+        - name: admin
+          containerPort: 8080
         args:
-        - --web
+        - --api
         - --kubernetes
+        - --logLevel=INFO
 ---
 kind: Service
 apiVersion: v1

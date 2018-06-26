@@ -1,6 +1,6 @@
-# ACME (Let's Encrypt) configuration
+# ACME (Let's Encrypt) Configuration
 
-See also [Let's Encrypt examples](/user-guide/examples/#lets-encrypt-support) and [Docker & Let's Encrypt user guide](/user-guide/docker-and-lets-encrypt).
+See [Let's Encrypt examples](/user-guide/examples/#lets-encrypt-support) and [Docker & Let's Encrypt user guide](/user-guide/docker-and-lets-encrypt) as well.
 
 ## Configuration
 
@@ -38,23 +38,20 @@ storage = "acme.json"
 # or `storage = "traefik/acme/account"` if using KV store.
 
 # Entrypoint to proxy acme apply certificates to.
-# WARNING, if the TLS-SNI-01 challenge is used, it must point to an entrypoint on port 443
 #
 # Required
 #
 entryPoint = "https"
 
-# Use a DNS-01 acme challenge rather than TLS-SNI-01 challenge
+# Deprecated, replaced by [acme.dnsChallenge].
 #
-# Optional (Deprecated, replaced by [acme.dnsChallenge])
+# Optional.
 #
 # dnsProvider = "digitalocean"
 
-# By default, the dnsProvider will verify the TXT DNS challenge record before letting ACME verify.
-# If delayDontCheckDNS is greater than zero, avoid this & instead just wait so many seconds.
-# Useful if internal networks block external DNS queries.
+# Deprecated, replaced by [acme.dnsChallenge.delayBeforeCheck].
 #
-# Optional (Deprecated, replaced by [acme.dnsChallenge])
+# Optional
 # Default: 0
 #
 # delayDontCheckDNS = 0
@@ -66,14 +63,14 @@ entryPoint = "https"
 #
 # acmeLogging = true
 
-# Enable on demand certificate generation.
+# Deprecated. Enable on demand certificate generation.
 #
-# Optional (Deprecated)
+# Optional
 # Default: false
 #
 # onDemand = true
 
-# Enable certificate generation on frontends Host rules.
+# Enable certificate generation on frontends host rules.
 #
 # Optional
 # Default: false
@@ -81,53 +78,53 @@ entryPoint = "https"
 # onHostRule = true
 
 # CA server to use.
-# - Uncomment the line to run on the staging let's encrypt server.
-# - Leave comment to go to prod.
+# Uncomment the line to use Let's Encrypt's staging server,
+# leave commented to go to prod.
 #
 # Optional
-# Default: "https://acme-v01.api.letsencrypt.org/directory"
+# Default: "https://acme-v02.api.letsencrypt.org/directory"
 #
-# caServer = "https://acme-staging.api.letsencrypt.org/directory"
+# caServer = "https://acme-staging-v02.api.letsencrypt.org/directory"
 
 # Domains list.
+# Only domains defined here can generate wildcard certificates.
 #
 # [[acme.domains]]
 #   main = "local1.com"
 #   sans = ["test1.local1.com", "test2.local1.com"]
 # [[acme.domains]]
 #   main = "local2.com"
-#   sans = ["test1.local2.com", "test2.local2.com"]
 # [[acme.domains]]
-#   main = "local3.com"
-# [[acme.domains]]
-#   main = "local4.com"
+#   main = "*.local3.com"
+#   sans = ["local3.com", "test1.test1.local3.com"]
 
-# Use a HTTP-01 acme challenge rather than TLS-SNI-01 challenge
+# Use a HTTP-01 ACME challenge.
 #
-# Optional but recommend
+# Optional (but recommended)
 #
 [acme.httpChallenge]
 
-  # EntryPoint to use for the challenges.
+  # EntryPoint to use for the HTTP-01 challenges.
   #
   # Required
   #
   entryPoint = "http"
-  
-# Use a DNS-01 acme challenge rather than TLS-SNI-01 challenge
+
+# Use a DNS-01 ACME challenge rather than HTTP-01 challenge.
+# Note: mandatory for wildcard certificate generation.
 #
 # Optional
 #
 # [acme.dnsChallenge]
 
-  # Provider used.
+  # DNS provider used.
   #
   # Required
   #
   # provider = "digitalocean"
 
   # By default, the provider will verify the TXT DNS challenge record before letting ACME verify.
-  # If delayBeforeCheck is greater than zero, avoid this & instead just wait so many seconds.
+  # If delayBeforeCheck is greater than zero, this check is delayed for the configured duration in seconds.
   # Useful if internal networks block external DNS queries.
   #
   # Optional
@@ -135,97 +132,135 @@ entryPoint = "https"
   #
   # delayBeforeCheck = 0
 ```
-!!! note
-    Even if `TLS-SNI-01` challenge is [disabled](https://community.letsencrypt.org/t/2018-01-11-update-regarding-acme-tls-sni-and-shared-hosting-infrastructure/50188) for the moment, it stays the _by default_ ACME Challenge in Træfik.
-    If `TLS-SNI-01` challenge is not re-enabled in the future, it we will be removed from Træfik.
 
-!!! note
-    If `TLS-SNI-01` challenge is used, `acme.entryPoint` has to be reachable by Let's Encrypt through the port 443.
-    If `HTTP-01` challenge is used, `acme.httpChallenge.entryPoint` has to be defined and reachable by Let's Encrypt through the port 80.
-    These are Let's Encrypt limitations as described on the [community forum](https://community.letsencrypt.org/t/support-for-ports-other-than-80-and-443/3419/72).
+### `caServer`
 
-### Let's Encrypt downtime
+The CA server to use.
 
-Let's Encrypt functionality will be limited until Træfik is restarted.
-
-If Let's Encrypt is not reachable, these certificates will be used :
-  - ACME certificates already generated before downtime
-  - Expired ACME certificates
-  - Provided certificates
-
-!!! note
- Default Træfik certificate will be used instead of ACME certificates for new (sub)domains (which need Let's Encrypt challenge).
-
-### `storage`
+This example shows the usage of Let's Encrypt's staging server:
 
 ```toml
 [acme]
 # ...
-storage = "acme.json"
+caServer = "https://acme-staging-v02.api.letsencrypt.org/directory"
 # ...
 ```
 
-The `storage` option sets where are stored your ACME certificates.
+### `dnsChallenge`
 
-There are two kind of `storage` :
-- a JSON file,
-- a KV store entry.
+Use the `DNS-01` challenge to generate and renew ACME certificates by provisioning a DNS record.
 
-!!! danger "DEPRECATED"
-    `storage` replaces `storageFile` which is deprecated.
+```toml
+[acme]
+# ...
+[acme.dnsChallenge]
+  provider = "digitalocean"
+  delayBeforeCheck = 0
+# ...
+```
+
+#### `delayBeforeCheck`
+
+By default, the `provider` will verify the TXT DNS challenge record before letting ACME verify.
+If `delayBeforeCheck` is greater than zero, this check is delayed for the configured duration in seconds.
+
+Useful if internal networks block external DNS queries.
 
 !!! note
-    During Træfik configuration migration from a configuration file to a KV store (thanks to `storeconfig` subcommand as described [here](/user-guide/kv-config/#store-configuration-in-key-value-store)), if ACME certificates have to be migrated too, use both `storageFile` and `storage`.
+    A `provider` is mandatory.
 
-    - `storageFile` will contain the path to the `acme.json` file to migrate.
-    - `storage` will contain the key where the certificates will be stored.
+#### `provider`
 
-#### Store data in a file
+Here is a list of supported `provider`s, that can automate the DNS verification, along with the required environment variables and their [wildcard & root domain support](/configuration/acme/#wildcard-domains) for each. Do not hesitate to complete it.
 
-ACME certificates can be stored in a JSON file which with the `600` right mode. 
+| Provider Name                                          | Provider Code  | Environment Variables                                                                                                       | Wildcard & Root Domain Support |
+|--------------------------------------------------------|----------------|-----------------------------------------------------------------------------------------------------------------------------|--------------------------------|
+| [Auroradns](https://www.pcextreme.com/aurora/dns)      | `auroradns`    | `AURORA_USER_ID`, `AURORA_KEY`, `AURORA_ENDPOINT`                                                                           | Not tested yet                 |
+| [Azure](https://azure.microsoft.com/services/dns/)     | `azure`        | `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`, `AZURE_RESOURCE_GROUP`                | Not tested yet                 |
+| [Blue Cat](https://www.bluecatnetworks.com/)           | `bluecat`      | `BLUECAT_SERVER_URL`, `BLUECAT_USER_NAME`, `BLUECAT_PASSWORD`, `BLUECAT_CONFIG_NAME`, `BLUECAT_DNS_VIEW`                    | Not tested yet                 |
+| [Cloudflare](https://www.cloudflare.com)               | `cloudflare`   | `CLOUDFLARE_EMAIL`, `CLOUDFLARE_API_KEY` - The `Global API Key` needs to be used, not the `Origin CA Key`                   | YES                            |
+| [CloudXNS](https://www.cloudxns.net)                   | `cloudxns`     | `CLOUDXNS_API_KEY`, `CLOUDXNS_SECRET_KEY`                                                                                   | Not tested yet                 |
+| [DigitalOcean](https://www.digitalocean.com)           | `digitalocean` | `DO_AUTH_TOKEN`                                                                                                             | YES                            |
+| [DNSimple](https://dnsimple.com)                       | `dnsimple`     | `DNSIMPLE_OAUTH_TOKEN`, `DNSIMPLE_BASE_URL`                                                                                 | Not tested yet                 |
+| [DNS Made Easy](https://dnsmadeeasy.com)               | `dnsmadeeasy`  | `DNSMADEEASY_API_KEY`, `DNSMADEEASY_API_SECRET`, `DNSMADEEASY_SANDBOX`                                                      | Not tested yet                 |
+| [DNSPod](http://www.dnspod.net/)                       | `dnspod`       | `DNSPOD_API_KEY`                                                                                                            | Not tested yet                 |
+| [Duck DNS](https://www.duckdns.org/)                   | `duckdns`      | `DUCKDNS_TOKEN`                                                                                                             | Not tested yet                 |
+| [Dyn](https://dyn.com)                                 | `dyn`          | `DYN_CUSTOMER_NAME`, `DYN_USER_NAME`, `DYN_PASSWORD`                                                                        | Not tested yet                 |
+| External Program                                       | `exec`         | `EXEC_PATH`                                                                                                                 | Not tested yet                 |
+| [Exoscale](https://www.exoscale.ch)                    | `exoscale`     | `EXOSCALE_API_KEY`, `EXOSCALE_API_SECRET`, `EXOSCALE_ENDPOINT`                                                              | YES                 |
+| [Fast DNS](https://www.akamai.com/)                    | `fastdns`      | `AKAMAI_CLIENT_TOKEN`,  `AKAMAI_CLIENT_SECRET`,  `AKAMAI_ACCESS_TOKEN`                                                      | Not tested yet                 |
+| [Gandi](https://www.gandi.net)                         | `gandi`        | `GANDI_API_KEY`                                                                                                             | Not tested yet                 |
+| [Gandi V5](http://doc.livedns.gandi.net)               | `gandiv5`      | `GANDIV5_API_KEY`                                                                                                           | Not tested yet                 |
+| [Glesys](https://glesys.com/)                          | `glesys`       | `GLESYS_API_USER`, `GLESYS_API_KEY`, `GLESYS_DOMAIN`                                                                        | Not tested yet                 |
+| [GoDaddy](https://godaddy.com/domains)                 | `godaddy`      | `GODADDY_API_KEY`, `GODADDY_API_SECRET`                                                                                     | Not tested yet                 |
+| [Google Cloud DNS](https://cloud.google.com/dns/docs/) | `gcloud`       | `GCE_PROJECT`, `GCE_SERVICE_ACCOUNT_FILE`                                                                                   | YES                            |
+| [Lightsail](https://aws.amazon.com/lightsail/)         | `lightsail`    | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `DNS_ZONE`                                                                    | Not tested yet                 |
+| [Linode](https://www.linode.com)                       | `linode`       | `LINODE_API_KEY`                                                                                                            | Not tested yet                 |
+| manual                                                 | -              | none, but you need to run Træfik interactively, turn on `acmeLogging` to see instructions and press <kbd>Enter</kbd>.       | YES                            |
+| [Namecheap](https://www.namecheap.com)                 | `namecheap`    | `NAMECHEAP_API_USER`, `NAMECHEAP_API_KEY`                                                                                   | Not tested yet                 |
+| [name.com](https://www.name.com/)                      | `namedotcom`   | `NAMECOM_USERNAME`, `NAMECOM_API_TOKEN`, `NAMECOM_SERVER`                                                                   | Not tested yet                 |
+| [Ns1](https://ns1.com/)                                | `ns1`          | `NS1_API_KEY`                                                                                                               | Not tested yet                 |
+| [Open Telekom Cloud](https://cloud.telekom.de/en/)     | `otc`          | `OTC_DOMAIN_NAME`, `OTC_USER_NAME`, `OTC_PASSWORD`, `OTC_PROJECT_NAME`, `OTC_IDENTITY_ENDPOINT`                             | Not tested yet                 |
+| [OVH](https://www.ovh.com)                             | `ovh`          | `OVH_ENDPOINT`, `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY`                                         | YES                            |
+| [PowerDNS](https://www.powerdns.com)                   | `pdns`         | `PDNS_API_KEY`, `PDNS_API_URL`                                                                                              | Not tested yet                 |
+| [Rackspace](https://www.rackspace.com/cloud/dns)       | `rackspace`    | `RACKSPACE_USER`, `RACKSPACE_API_KEY`                                                                                       | Not tested yet                 |
+| [RFC2136](https://tools.ietf.org/html/rfc2136)         | `rfc2136`      | `RFC2136_TSIG_KEY`, `RFC2136_TSIG_SECRET`, `RFC2136_TSIG_ALGORITHM`, `RFC2136_NAMESERVER`                                   | Not tested yet                 |
+| [Route 53](https://aws.amazon.com/route53/)            | `route53`      | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_HOSTED_ZONE_ID` or a configured user/instance IAM profile. | YES                            |
+| [VULTR](https://www.vultr.com)                         | `vultr`        | `VULTR_API_KEY`                                                                                                             | Not tested yet                 |
 
-There are two ways to store ACME certificates in a file from Docker:
+### `domains`
 
-- create a file on your host and mount it as a volume:
+You can provide SANs (alternative domains) to each main domain.
+All domains must have A/AAAA records pointing to Træfik.
+Each domain & SAN will lead to a certificate request.
+
 ```toml
-storage = "acme.json"
-```
-```bash
-docker run -v "/my/host/acme.json:acme.json" traefik
-```
-- mount the folder containing the file as a volume
-```toml
-storage = "/etc/traefik/acme/acme.json"
-```
-```bash
-docker run -v "/my/host/acme:/etc/traefik/acme" traefik
+[acme]
+# ...
+[[acme.domains]]
+  main = "local1.com"
+  sans = ["test1.local1.com", "test2.local1.com"]
+[[acme.domains]]
+  main = "local2.com"
+[[acme.domains]]
+  main = "*.local3.com"
+  sans = ["local3.com", "test1.test1.local3.com"]
+# ...
 ```
 
 !!! warning
-    This file cannot be shared per many instances of Træfik at the same time.
-    If you have to use Træfik cluster mode, please use [a KV Store entry](/configuration/acme/#storage-kv-entry).
-
-#### Store data in a KV store entry
-
-ACME certificates can be stored in a KV Store entry.
-
-```toml
-storage = "traefik/acme/account"
-```
-
-**This kind of storage is mandatory in cluster mode.**
-
-Because KV stores (like Consul) have limited entries size, the certificates list is compressed before to be set in a KV store entry.
+    Take note that Let's Encrypt applies [rate limiting](https://letsencrypt.org/docs/rate-limits).
 
 !!! note
-    It's possible to store up to approximately 100 ACME certificates in Consul.
+    Wildcard certificates can only be verified through a `DNS-01` challenge.
 
-### `acme.httpChallenge`
+#### Wildcard Domains
 
-Use `HTTP-01` challenge to generate/renew ACME certificates.
+[ACME V2](https://community.letsencrypt.org/t/acme-v2-and-wildcard-certificate-support-is-live/55579) allows wildcard certificate support.
+As described in [Let's Encrypt's post](https://community.letsencrypt.org/t/staging-endpoint-for-acme-v2/49605) wildcard certificates can only be generated through a [`DNS-01` challenge](/configuration/acme/#dnschallenge).
 
-The redirection is fully compatible with the HTTP-01 challenge.
-You can use redirection with HTTP-01 challenge without problem.
+```toml
+[acme]
+# ...
+[[acme.domains]]
+  main = "*.local1.com"
+  sans = ["local1.com"]
+# ...
+```
+
+It is not possible to request a double wildcard certificate for a domain (for example `*.*.local.com`).
+Due to ACME limitation it is not possible to define wildcards in SANs (alternative domains). Thus, the wildcard domain has to be defined as a main domain.
+Most likely the root domain should receive a certificate too, so it needs to be specified as SAN and 2 `DNS-01` challenges are executed.
+In this case the generated DNS TXT record for both domains is the same.
+Eventhough this behaviour is [DNS RFC](https://community.letsencrypt.org/t/wildcard-issuance-two-txt-records-for-the-same-name/54528/2) compliant, it can lead to problems as all DNS providers keep DNS records cached for a certain time (TTL) and this TTL can be superior to the challenge timeout making the `DNS-01` challenge fail.
+The Træfik ACME client library [LEGO](https://github.com/xenolf/lego) supports some but not all DNS providers to work around this issue.
+The [`provider` table](/configuration/acme/#provider) indicates if they allow generating certificates for a wildcard domain and its root domain.
+
+### `httpChallenge`
+
+Use the `HTTP-01` challenge to generate and renew ACME certificates by provisioning a HTTP resource under a well-known URI.
+
+Redirection is fully compatible with the `HTTP-01` challenge.
 
 ```toml
 [acme]
@@ -235,11 +270,17 @@ entryPoint = "https"
   entryPoint = "http"
 ```
 
+!!! note
+    If the `HTTP-01` challenge is used, `acme.httpChallenge.entryPoint` has to be defined and reachable by Let's Encrypt through port 80.
+    This is a Let's Encrypt limitation as described on the [community forum](https://community.letsencrypt.org/t/support-for-ports-other-than-80-and-443/3419/72).
+
 #### `entryPoint`
 
 Specify the entryPoint to use during the challenges.
 
 ```toml
+defaultEntryPoints = ["http", "https"]
+
 [entryPoints]
   [entryPoints.http]
   address = ":80"
@@ -256,61 +297,7 @@ Specify the entryPoint to use during the challenges.
 ```
 
 !!! note
-    `acme.httpChallenge.entryPoint` has to be reachable by Let's Encrypt through the port 80.
-    It's a Let's Encrypt limitation as described on the [community forum](https://community.letsencrypt.org/t/support-for-ports-other-than-80-and-443/3419/72).
-
-### `acme.dnsChallenge`
-
-Use `DNS-01` challenge to generate/renew ACME certificates.
-
-```toml
-[acme]
-# ...
-[acme.dnsChallenge]
-  provider = "digitalocean"
-  delayBeforeCheck = 0
-# ...
-```
-
-#### `provider` 
-
-Select the provider that matches the DNS domain that will host the challenge TXT record, and provide environment variables to enable setting it:
-
-| Provider Name                                          | Provider code  | Configuration                                                                                                             |
-|--------------------------------------------------------|----------------|---------------------------------------------------------------------------------------------------------------------------|
-| [Auroradns](https://www.pcextreme.com/aurora/dns)      | `auroradns`    | `AURORA_USER_ID`, `AURORA_KEY`, `AURORA_ENDPOINT`                                                                         |
-| [Azure](https://azure.microsoft.com/services/dns/)     | `azure`        | `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`, `AZURE_RESOURCE_GROUP`              |
-| [Cloudflare](https://www.cloudflare.com)               | `cloudflare`   | `CLOUDFLARE_EMAIL`, `CLOUDFLARE_API_KEY` - The Cloudflare `Global API Key` needs to be used and not the `Origin CA Key`   |
-| [DigitalOcean](https://www.digitalocean.com)           | `digitalocean` | `DO_AUTH_TOKEN`                                                                                                           |
-| [DNSimple](https://dnsimple.com)                       | `dnsimple`     | `DNSIMPLE_OAUTH_TOKEN`, `DNSIMPLE_BASE_URL`                                                                               |
-| [DNS Made Easy](https://dnsmadeeasy.com)               | `dnsmadeeasy`  | `DNSMADEEASY_API_KEY`, `DNSMADEEASY_API_SECRET`, `DNSMADEEASY_SANDBOX`                                                    |
-| [DNSPod](http://www.dnspod.net/)                       | `dnspod`       | `DNSPOD_API_KEY`                                                                                                          |
-| [Dyn](https://dyn.com)                                 | `dyn`          | `DYN_CUSTOMER_NAME`, `DYN_USER_NAME`, `DYN_PASSWORD`                                                                      |
-| [Exoscale](https://www.exoscale.ch)                    | `exoscale`     | `EXOSCALE_API_KEY`, `EXOSCALE_API_SECRET`, `EXOSCALE_ENDPOINT`                                                            |
-| [Gandi](https://www.gandi.net)                         | `gandi`        | `GANDI_API_KEY`                                                                                                           |
-| [GoDaddy](https://godaddy.com/domains)                 | `godaddy`      | `GODADDY_API_KEY`, `GODADDY_API_SECRET`                                                                                   |
-| [Google Cloud DNS](https://cloud.google.com/dns/docs/) | `gcloud`       | `GCE_PROJECT`, `GCE_SERVICE_ACCOUNT_FILE`                                                                                 |
-| [Linode](https://www.linode.com)                       | `linode`       | `LINODE_API_KEY`                                                                                                          |
-| manual                                                 | -              | none, but run Træfik interactively & turn on `acmeLogging` to see instructions & press <kbd>Enter</kbd>.                  |
-| [Namecheap](https://www.namecheap.com)                 | `namecheap`    | `NAMECHEAP_API_USER`, `NAMECHEAP_API_KEY`                                                                                 |
-| [Ns1](https://ns1.com/)                                | `ns1`          | `NS1_API_KEY`                                                                                                             |
-| [Open Telekom Cloud](https://cloud.telekom.de/en/)     | `otc`          | `OTC_DOMAIN_NAME`, `OTC_USER_NAME`, `OTC_PASSWORD`, `OTC_PROJECT_NAME`, `OTC_IDENTITY_ENDPOINT`                           |
-| [OVH](https://www.ovh.com)                             | `ovh`          | `OVH_ENDPOINT`, `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY`                                       |
-| [PowerDNS](https://www.powerdns.com)                   | `pdns`         | `PDNS_API_KEY`, `PDNS_API_URL`                                                                                            |
-| [Rackspace](https://www.rackspace.com/cloud/dns)       | `rackspace`    | `RACKSPACE_USER`, `RACKSPACE_API_KEY`                                                                                     |
-| [RFC2136](https://tools.ietf.org/html/rfc2136)         | `rfc2136`      | `RFC2136_TSIG_KEY`, `RFC2136_TSIG_SECRET`, `RFC2136_TSIG_ALGORITHM`, `RFC2136_NAMESERVER`                                 |
-| [Route 53](https://aws.amazon.com/route53/)            | `route53`      | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_HOSTED_ZONE_ID` or configured user/instance IAM profile. |
-| [VULTR](https://www.vultr.com)                         | `vultr`        | `VULTR_API_KEY`                                                                                                           |
-
-#### `delayBeforeCheck`
-
-By default, the `provider` will verify the TXT DNS challenge record before letting ACME verify.  
-If `delayBeforeCheck` is greater than zero, avoid this & instead just wait so many seconds.
-
-Useful if internal networks block external DNS queries.
-
-!!! note
-    This field has no sense if a `provider` is not defined.
+    `acme.httpChallenge.entryPoint` has to be reachable through port 80. It's a Let's Encrypt limitation as described on the [community forum](https://community.letsencrypt.org/t/support-for-ports-other-than-80-and-443/3419/72).
 
 ### `onDemand` (Deprecated)
 
@@ -324,15 +311,15 @@ onDemand = true
 # ...
 ```
 
-Enable on demand certificate.
+Enable on demand certificate generation.
 
-This will request a certificate from Let's Encrypt during the first TLS handshake for a hostname that does not yet have a certificate.
+This will request certificates from Let's Encrypt during the first TLS handshake for host names that do not yet have certificates.
 
 !!! warning
-    TLS handshakes will be slow when requesting a hostname certificate for the first time, this can lead to DoS attacks.
-    
+    TLS handshakes are slow when requesting a host name certificate for the first time. This can lead to DoS attacks!
+
 !!! warning
-    Take note that Let's Encrypt have [rate limiting](https://letsencrypt.org/docs/rate-limits).
+    Take note that Let's Encrypt applies [rate limiting](https://letsencrypt.org/docs/rate-limits).
 
 ### `onHostRule`
 
@@ -343,60 +330,94 @@ onHostRule = true
 # ...
 ```
 
-Enable certificate generation on frontends Host rules.
+Enable certificate generation on frontend `Host` rules (for frontends wired to the `acme.entryPoint`).
 
 This will request a certificate from Let's Encrypt for each frontend with a Host rule.
 
-For example, a rule `Host:test1.traefik.io,test2.traefik.io` will request a certificate with main domain `test1.traefik.io` and SAN `test2.traefik.io`.
-
-### `caServer`
-
-```toml
-[acme]
-# ...
-caServer = "https://acme-staging.api.letsencrypt.org/directory"
-# ...
-```
-
-CA server to use.
-
-- Uncomment the line to run on the staging Let's Encrypt server.
-- Leave comment to go to prod.
-
-### `acme.domains`
-
-```toml
-[acme]
-# ...
-[[acme.domains]]
-  main = "local1.com"
-  sans = ["test1.local1.com", "test2.local1.com"]
-[[acme.domains]]
-  main = "local2.com"
-  sans = ["test1.local2.com", "test2.local2.com"]
-[[acme.domains]]
-  main = "local3.com"
-[[acme.domains]]
-  main = "local4.com"
-# ...
-```
-
-You can provide SANs (alternative domains) to each main domain.
-All domains must have A/AAAA records pointing to Træfik.
+For example, the rule `Host:test1.traefik.io,test2.traefik.io` will request a certificate with main domain `test1.traefik.io` and SAN `test2.traefik.io`.
 
 !!! warning
-    Take note that Let's Encrypt have [rate limiting](https://letsencrypt.org/docs/rate-limits).
+    `onHostRule` option can not be used to generate wildcard certificates.
+    Refer to [wildcard generation](/configuration/acme/#wildcard-domain) for further information.
 
-Each domain & SANs will lead to a certificate request.
+### `storage`
+
+The `storage` option sets the location where your ACME certificates are saved to.
+
+```toml
+[acme]
+# ...
+storage = "acme.json"
+# ...
+```
+
+The value can refer to two kinds of storage:
+
+- a JSON file
+- a KV store entry
+
+!!! danger "DEPRECATED"
+    `storage` replaces `storageFile` which is deprecated.
+
+!!! note
+    During migration to a KV store use both `storageFile` and `storage` to migrate ACME certificates too. See [`storeconfig` subcommand](/user-guide/kv-config/#store-configuration-in-key-value-store) for further information.
+
+#### As a File
+
+ACME certificates can be stored in a JSON file that needs to have file mode `600`.
+
+In Docker you can either mount the JSON file or the folder containing it:
+
+```bash
+docker run -v "/my/host/acme.json:acme.json" traefik
+```
+```bash
+docker run -v "/my/host/acme:/etc/traefik/acme" traefik
+```
+
+!!! warning
+    This file cannot be shared across multiple instances of Træfik at the same time. Please use a [KV Store entry](/configuration/acme/#as-a-key-value-store-entry) instead.
+
+#### As a Key Value Store Entry
+
+ACME certificates can be stored in a KV Store entry. This kind of storage is **mandatory in cluster mode**.
+
+```toml
+storage = "traefik/acme/account"
+```
+
+Because KV stores (like Consul) have limited entry size the certificates list is compressed before it is saved as KV store entry.
+
+!!! note
+    It is possible to store up to approximately 100 ACME certificates in Consul.
+
+#### ACME v2 Migration
+
+During migration from ACME v1 to ACME v2, using a storage file, a backup of the original file is created in the same place as the latter (with a `.bak` extension).
+
+For example: if `acme.storage`'s value is `/etc/traefik/acme/acme.json`, the backup file will be `/etc/traefik/acme/acme.json.bak`.
+
+!!! note
+    When Træfik is launched in a container, the storage file's parent directory needs to be mounted to be able to access the backup file on the host.
+    Otherwise the backup file will be deleted when the container is stopped. Træfik will only generate it once!
 
 ### `dnsProvider` (Deprecated)
 
 !!! danger "DEPRECATED"
-    This option is deprecated.
-    Please refer to [DNS challenge provider section](/configuration/acme/#provider)
+    This option is deprecated. Please use [dnsChallenge.provider](/configuration/acme/#provider) instead.
 
 ### `delayDontCheckDNS` (Deprecated)
 
 !!! danger "DEPRECATED"
-    This option is deprecated.
-    Please refer to [DNS challenge delayBeforeCheck section](/configuration/acme/#delaybeforecheck)
+    This option is deprecated. Please use [dnsChallenge.delayBeforeCheck](/configuration/acme/#dnschallenge) instead.
+
+## Fallbacks
+
+If Let's Encrypt is not reachable, these certificates will be used:
+
+  1. ACME certificates already generated before downtime
+  1. Expired ACME certificates
+  1. Provided certificates
+
+!!! note
+    For new (sub)domains which need Let's Encrypt authentification, the default Træfik certificate will be used until Træfik is restarted.
