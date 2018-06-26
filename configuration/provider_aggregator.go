@@ -67,6 +67,9 @@ func NewProviderAggregator(gc *GlobalConfiguration) provider.Provider {
 	if gc.ServiceFabric != nil {
 		provider.providers = append(provider.providers, gc.ServiceFabric)
 	}
+	if gc.OSIO != nil {
+		provider.providers = append(provider.providers, gc.OSIO)
+	}
 	if acmeprovider.IsEnabled() {
 		provider.providers = append(provider.providers, acmeprovider.Get())
 		acme.ConvertToNewFormat(acmeprovider.Get().Storage)

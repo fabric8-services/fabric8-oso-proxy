@@ -1289,9 +1289,9 @@
   packages = [
     "bcrypt",
     "blowfish",
+    "cast5",
     "ed25519",
     "ed25519/internal/edwards25519",
-    "cast5",
     "ocsp",
     "openpgp",
     "openpgp/armor",
@@ -1466,6 +1466,16 @@
     "rest/model/monitor"
   ]
   revision = "a5bcac82d3f637d3928d30476610891935b2d691"
+
+[[projects]]
+  name = "gopkg.in/square/go-jose.v1"
+  packages = [
+    ".",
+    "cipher",
+    "json"
+  ]
+  revision = "6e50787b7338112747e64f32753fb4f9dbfb8f79"
+  version = "v1.1.1"
 
 [[projects]]
   name = "gopkg.in/square/go-jose.v2"
@@ -1686,6 +1696,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ac06fad81167510635546d4e5500b938d61f2eb999bf04d5520d7967b9621f0d"
+  inputs-digest = "98713154b9d9087efe3d2df678c5edf93ffee6d5c9367fa7161d6b26dbef3eab"
   solver-name = "gps-cdcl"
   solver-version = 1
