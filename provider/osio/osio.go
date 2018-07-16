@@ -20,12 +20,6 @@ const (
 	authorization = "Authorization"
 )
 
-// list of cluster hard coded to be filtered out when choosing default backend
-var filterDefaultBackends = map[string]bool{
-	"https://api.starter-us-east-1a.openshift.com": true,
-	"https://api.starter-us-east-1b.openshift.com": true,
-}
-
 // Provider holds configurations of the provider.
 type Provider struct {
 	provider.BaseProvider `mapstructure:",squash" export:"true"`
@@ -33,8 +27,8 @@ type Provider struct {
 	RefreshSeconds       int    `description:"Polling interval (in seconds)" export:"true"`
 	ServiceAccountID     string `description:"Service Account ID" export:"true"`
 	ServiceAccountSecret string `description:"Service Account Secret" export:"true"`
-	TokenAPI             string `description:"Auth token API" export:"true"`
-	ClusterAPI           string `description:"Cluster data API" export:"true"`
+	TokenURL             string `description:"Auth Token URL" export:"true"`
+	ClustersURL          string `description:"Clusters details URL" export:"true"`
 
 	client            Client
 	tokenResp         *TokenResponse
@@ -127,7 +121,7 @@ func (p *Provider) fetchToken() error {
 		return nil
 	}
 	tokenReq := &TokenRequest{GrantType: "client_credentials", ClientID: p.ServiceAccountID, ClientSecret: p.ServiceAccountSecret}
-	tokenResp, err := p.client.CallTokenAPI(p.TokenAPI, tokenReq)
+	tokenResp, err := p.client.GetToken(p.TokenURL, tokenReq)
 	if err != nil {
 		return err
 	}
@@ -136,7 +130,7 @@ func (p *Provider) fetchToken() error {
 }
 
 func (p *Provider) loadConfig() (*types.Configuration, error) {
-	clusterResponse, err := p.client.CallClusterAPI(p.ClusterAPI, p.tokenResp)
+	clusterResponse, err := p.client.GetClusters(p.ClustersURL, p.tokenResp)
 	if err != nil {
 		return nil, err
 	}
@@ -154,15 +148,23 @@ func (p *Provider) loadRules(clusterResp *clusterResponse) *types.Configuration 
 
 	defaultBackendExist := false
 	for ind, cluster := range clusterResp.Clusters {
-		if p.defaultBackendURL != "" && p.defaultBackendURL == cluster.APIURL {
+		if p.defaultBackendURL != "" && p.defaultBackendURL == getDefaultURL(cluster) {
 			defaultBackendExist = true
 		}
 		configInd := fmt.Sprintf("%d", ind+1)
-		config.Frontends["frontend"+configInd] = createFrontend(cluster.APIURL, "backend"+configInd)
-		config.Backends["backend"+configInd] = createBackend(cluster.APIURL)
+		if cluster.APIURL != "" {
+			config.Frontends["api"+configInd] = createFrontend(cluster.APIURL, "api"+configInd)
+			config.Backends["api"+configInd] = createBackend(cluster.APIURL)
+		}
+		if cluster.MetricsURL != "" {
+			config.Frontends["metrics"+configInd] = createFrontend(cluster.MetricsURL, "metrics"+configInd)
+			config.Backends["metrics"+configInd] = createBackend(cluster.MetricsURL)
+		}
 	}
 	if !defaultBackendExist {
-		p.defaultBackendURL = findDefaultURL(clusterResp.Clusters)
+		if len(clusterResp.Clusters) > 0 {
+			p.defaultBackendURL = getDefaultURL(clusterResp.Clusters[0])
+		}
 	}
 	if p.defaultBackendURL != "" {
 		config.Frontends["default"] = createFrontend("default", "default")
@@ -173,30 +175,23 @@ func (p *Provider) loadRules(clusterResp *clusterResponse) *types.Configuration 
 }
 
 func createFrontend(clusterURL string, backend string) *types.Frontend {
+	clusterURL = normalizeURL(clusterURL)
 	routes := make(map[string]types.Route)
-	routes["test_1"] = types.Route{Rule: "HeadersRegexp:Target," + clusterURL}
+	routes["test_1"] = types.Route{Rule: "Headers:Target," + clusterURL}
 	return &types.Frontend{Backend: backend, Routes: routes}
 }
 
 func createBackend(clusterURL string) *types.Backend {
+	clusterURL = normalizeURL(clusterURL)
 	servers := make(map[string]types.Server)
 	servers["server1"] = types.Server{URL: clusterURL}
 	return &types.Backend{Servers: servers}
 }
 
-func findDefaultURL(clusters []clusterData) string {
-	for _, cluster := range clusters {
-		clusterURL := cluster.APIURL
-		found := false
-		for backend := range filterDefaultBackends {
-			if strings.HasPrefix(clusterURL, backend) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return clusterURL
-		}
-	}
-	return ""
+func normalizeURL(url string) string {
+	return strings.TrimSuffix(url, "/")
+}
+
+func getDefaultURL(cluster clusterData) string {
+	return cluster.APIURL
 }
