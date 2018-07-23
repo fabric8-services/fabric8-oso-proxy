@@ -63,20 +63,6 @@ var mwCtx = testMiddlewareCtx{tables: []testMiddlewareData{
 		"/api/anything",
 	},
 	{
-		"/oapi",
-		"Bearer 1000",
-		"http://api.cluster1.com",
-		"Bearer 1001",
-		"/oapi",
-	},
-	{
-		"/oapi/oapi",
-		"Bearer 1000",
-		"http://api.cluster1.com",
-		"Bearer 1001",
-		"/oapi",
-	},
-	{
 		"/oapi/anything",
 		"Bearer 1000",
 		"http://api.cluster1.com",
@@ -84,7 +70,7 @@ var mwCtx = testMiddlewareCtx{tables: []testMiddlewareData{
 		"/oapi/anything",
 	},
 	{
-		"/oapi/oapi/anything",
+		"/api/oapi/anything",
 		"Bearer 1000",
 		"http://api.cluster1.com",
 		"Bearer 1001",

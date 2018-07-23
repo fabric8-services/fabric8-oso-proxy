@@ -21,7 +21,6 @@ type RequestType string
 
 const (
 	api      RequestType = "api"
-	oapi     RequestType = "oapi"
 	metrics  RequestType = "metrics"
 	console  RequestType = "console"
 	logs     RequestType = "logs"
@@ -37,6 +36,11 @@ const (
 var TokenTypeMap = map[string]TokenType{
 	"rh-che": CheToken,
 }
+
+var (
+	apiPrefix  = api.path() + api.path()
+	oapiPrefix = api.path() + "/oapi"
+)
 
 type TokenType string
 
@@ -242,8 +246,6 @@ func getRequestType(req *http.Request) RequestType {
 	switch {
 	case strings.HasPrefix(reqPath, api.path()):
 		return api
-	case strings.HasPrefix(reqPath, oapi.path()):
-		return oapi
 	case strings.HasPrefix(reqPath, metrics.path()):
 		return metrics
 	case strings.HasPrefix(reqPath, console.path()):
@@ -261,7 +263,7 @@ func (r RequestType) path() string {
 
 func (r RequestType) getTargetURL(ns namespace) string {
 	switch r {
-	case api, oapi:
+	case api:
 		return ns.ClusterURL
 	case metrics:
 		return ns.ClusterMetricsURL
@@ -279,8 +281,12 @@ func (r RequestType) getTargetURL(ns namespace) string {
 func (r RequestType) stripPathPrefix(req *http.Request) {
 	var pathPrefix, stripPath string
 	switch r {
-	case api, oapi:
-		pathPrefix = r.path() + r.path()
+	case api:
+		if strings.HasPrefix(req.URL.Path, oapiPrefix) {
+			pathPrefix = oapiPrefix
+		} else {
+			pathPrefix = apiPrefix
+		}
 		stripPath = r.path()
 	case metrics, console, logs:
 		pathPrefix = r.path()

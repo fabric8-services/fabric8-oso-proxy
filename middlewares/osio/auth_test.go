@@ -330,24 +330,24 @@ func TestRemoveUserID(t *testing.T) {
 
 func TestStripPathPrefix(t *testing.T) {
 	tables := []struct {
-		reqType      RequestType
 		reqPath      string
 		expectedPath string
 	}{
-		{api, "/api/api/anything", "/api/anything"},
-		{api, "/api/anything", "/api/anything"},
-		{oapi, "/oapi/oapi/anything", "/oapi/anything"},
-		{oapi, "/oapi/anything", "/oapi/anything"},
-		{metrics, "/metrics/anything", "/anything"},
-		{console, "/console/anything", "/anything"},
-		{logs, "/logs/anything", "/anything"},
-		{undefine, "/anything", "/anything"},
-		{undefine, "/", "/"},
+		{"/api/api/anything", "/api/anything"},
+		{"/api/anything", "/api/anything"},
+		{"/api/oapi/anything", "/oapi/anything"},
+		{"/oapi/anything", "/oapi/anything"},
+		{"/metrics/anything", "/anything"},
+		{"/console/anything", "/anything"},
+		{"/logs/anything", "/anything"},
+		{"/anything", "/anything"},
+		{"/", "/"},
 	}
 
 	for _, table := range tables {
 		req := createRequestWithPath(table.reqPath)
-		table.reqType.stripPathPrefix(req)
+		reqType := getRequestType(req)
+		reqType.stripPathPrefix(req)
 		assertRequestPath(t, req, table.expectedPath)
 	}
 }
