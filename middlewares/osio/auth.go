@@ -20,10 +20,11 @@ const (
 type RequestType string
 
 const (
-	api     RequestType = "api"
-	metrics RequestType = "metrics"
-	console RequestType = "console"
-	logs    RequestType = "logs"
+	api      RequestType = "api"
+	metrics  RequestType = "metrics"
+	console  RequestType = "console"
+	logs     RequestType = "logs"
+	undefine RequestType = ""
 )
 
 const (
@@ -35,6 +36,11 @@ const (
 var TokenTypeMap = map[string]TokenType{
 	"rh-che": CheToken,
 }
+
+var (
+	apiPrefix  = api.path() + api.path()
+	oapiPrefix = api.path() + "/oapi"
+)
 
 type TokenType string
 
@@ -215,7 +221,7 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 
 			// routing or redirect
 			reqType := getRequestType(r)
-			stripRequestPathPrefix(r, reqType.path())
+			reqType.stripPathPrefix(r)
 			targetURL := normalizeURL(reqType.getTargetURL(cached.Namespace))
 			if reqType.isRedirectRequest() {
 				redirectURL := reqType.getRedirectURL(targetURL, r)
@@ -247,7 +253,7 @@ func getRequestType(req *http.Request) RequestType {
 	case strings.HasPrefix(reqPath, logs.path()):
 		return logs
 	default:
-		return api
+		return undefine
 	}
 }
 
@@ -265,9 +271,30 @@ func (r RequestType) getTargetURL(ns namespace) string {
 		return ns.ClusterConsoleURL
 	case logs:
 		return ns.ClusterLoggingURL
+	case undefine:
+		return ns.ClusterURL
 	default:
 		return ns.ClusterURL
 	}
+}
+
+func (r RequestType) stripPathPrefix(req *http.Request) {
+	var pathPrefix, stripPath string
+	switch r {
+	case api:
+		if strings.HasPrefix(req.URL.Path, oapiPrefix) {
+			pathPrefix = oapiPrefix
+		} else {
+			pathPrefix = apiPrefix
+		}
+		stripPath = r.path()
+	case metrics, console, logs:
+		pathPrefix = r.path()
+		stripPath = r.path()
+	case undefine:
+		return
+	}
+	stripRequestPathPrefix(req, pathPrefix, stripPath)
 }
 
 func (r RequestType) isRedirectRequest() bool {
@@ -315,9 +342,9 @@ func cacheKey(plainKey string) string {
 	return hash
 }
 
-func stripRequestPathPrefix(req *http.Request, prefix string) {
-	if strings.HasPrefix(req.URL.Path, prefix) {
-		req.URL.Path = stripPrefix(req.URL.Path, prefix)
+func stripRequestPathPrefix(req *http.Request, pathPrefix, stripPath string) {
+	if strings.HasPrefix(req.URL.Path, pathPrefix) {
+		req.URL.Path = stripPrefix(req.URL.Path, stripPath)
 		req.RequestURI = req.URL.RequestURI()
 	}
 }
@@ -357,7 +384,7 @@ func removeUserID(req *http.Request) {
 		if strings.Contains(userID, "/") {
 
 			// Processing query params
-			rawQuery := req.URL.RawQuery;
+			rawQuery := req.URL.RawQuery
 			if strings.Contains(rawQuery, "?") {
 				queryIndex := strings.LastIndex(rawQuery, "?")
 				rawQuery = rawQuery[queryIndex+1:]
@@ -368,7 +395,6 @@ func removeUserID(req *http.Request) {
 				rawQuery = ""
 			}
 			req.URL.RawQuery = rawQuery
-
 
 			// Removing query params from userID
 			if strings.Contains(userID, "?") {

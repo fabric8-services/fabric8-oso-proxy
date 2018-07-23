@@ -3,6 +3,7 @@ package middlewares
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -60,14 +61,14 @@ func TestExtractUserID(t *testing.T) {
 	})
 
 	t.Run("UserID as part of ugly url parameter produced by kubernetes client for 'exec' calls", func(t *testing.T) {
-		adhocURL:= fmt.Sprintf("http://f8osoproxy.com?%s=%s/some/path/to/pod/exec?command=date&tty=true&stdin=true&stdout=true&stderr=true", UserIDParam, expectedUserID)
+		adhocURL := fmt.Sprintf("http://f8osoproxy.com?%s=%s/some/path/to/pod/exec?command=date&tty=true&stdin=true&stdout=true&stderr=true", UserIDParam, expectedUserID)
 		req, _ := http.NewRequest(http.MethodGet, adhocURL, nil)
 		userID := extractUserID(req)
 		assert.Equal(t, expectedUserID, userID)
 	})
 
 	t.Run("UserID as part of ugly url segment produced by kubernetes client for 'exec' calls", func(t *testing.T) {
-		adhocURL:= fmt.Sprintf("http://f8osoproxy.com/?%s=%s/some/path/to/pod/exec?command=date&tty=true&stdin=true&stdout=true&stderr=true", UserIDParam, expectedUserID)
+		adhocURL := fmt.Sprintf("http://f8osoproxy.com/?%s=%s/some/path/to/pod/exec?command=date&tty=true&stdin=true&stdout=true&stderr=true", UserIDParam, expectedUserID)
 		req, _ := http.NewRequest(http.MethodGet, adhocURL, nil)
 		userID := extractUserID(req)
 		assert.Equal(t, expectedUserID, userID)
@@ -116,7 +117,7 @@ func TestRemoveUserID(t *testing.T) {
 		actualUserID := req.URL.Query().Get(UserIDParam)
 		assert.Empty(t, actualUserID)
 
-		queryParamValue := req.URL.Query().Get("key");
+		queryParamValue := req.URL.Query().Get("key")
 		assert.Equal(t, "value", queryParamValue)
 
 		assert.Equal(t, "key=value", req.URL.RawQuery)
@@ -325,4 +326,41 @@ func TestRemoveUserID(t *testing.T) {
 		assert.Equal(t, "labelSelector=che.workspace_id%3Dworkspacew9zk6m4xggf0pbtk", req.URL.RawQuery)
 		assert.Equal(t, "http://f8osoproxy.com/api/v1/namespaces/osio-ci-ee1-preview-che/pods?labelSelector=che.workspace_id%3Dworkspacew9zk6m4xggf0pbtk", req.URL.String())
 	})
+}
+
+func TestStripPathPrefix(t *testing.T) {
+	tables := []struct {
+		reqPath      string
+		expectedPath string
+	}{
+		{"/api/api/anything", "/api/anything"},
+		{"/api/anything", "/api/anything"},
+		{"/api/oapi/anything", "/oapi/anything"},
+		{"/oapi/anything", "/oapi/anything"},
+		{"/metrics/anything", "/anything"},
+		{"/console/anything", "/anything"},
+		{"/logs/anything", "/anything"},
+		{"/anything", "/anything"},
+		{"/", "/"},
+	}
+
+	for _, table := range tables {
+		req := createRequestWithPath(table.reqPath)
+		reqType := getRequestType(req)
+		reqType.stripPathPrefix(req)
+		assertRequestPath(t, req, table.expectedPath)
+	}
+}
+
+func createRequestWithPath(path string) *http.Request {
+	req := &http.Request{}
+	req.URL = &url.URL{Path: path}
+	req.RequestURI = req.URL.RequestURI()
+	return req
+}
+
+func assertRequestPath(t *testing.T, req *http.Request, expectedPath string) {
+	t.Helper()
+	assert.Equal(t, expectedPath, req.URL.Path)
+	assert.Equal(t, expectedPath, req.RequestURI)
 }
