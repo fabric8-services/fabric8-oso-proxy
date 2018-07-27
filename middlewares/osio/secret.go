@@ -1,4 +1,4 @@
-package middlewares
+package osio
 
 import (
 	"encoding/base64"
