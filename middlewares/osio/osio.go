@@ -377,10 +377,14 @@ func extractUserID(req *http.Request) string {
 
 func removeUserID(req *http.Request) {
 	if req.Header.Get(UserIDHeader) != "" {
+		log.Info("'Impersonate-User' header is presented: " + req.Header.Get(UserIDHeader))
 		req.Header.Del(UserIDHeader)
+	} else {
+		log.Info("'Impersonate-User' header is NOT presented in the request")
 	}
 	userID := req.URL.Query().Get(UserIDParam)
 	if userID != "" {
+		log.Info("'Impersonate-User' is presented in the request URL parameters: " + userID)
 		if strings.Contains(userID, "/") {
 
 			// Processing query params
