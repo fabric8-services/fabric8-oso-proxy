@@ -12,9 +12,11 @@ import (
 )
 
 const (
-	Authorization = "Authorization"
-	UserIDHeader  = "Impersonate-User"
-	UserIDParam   = "identity_id"
+	Authorization    = "Authorization"
+	UserIDHeader     = "Impersonate-User"
+	UserIDParam      = "identity_id"
+	ParamPathSegment = "ns"
+	NamespaceType    = "type"
 )
 
 type RequestType string
@@ -45,8 +47,8 @@ var (
 type TokenType string
 
 type TenantLocator interface {
-	GetTenant(token string, tokenType TokenType) (namespace, error)
-	GetTenantById(token string, tokenType TokenType, userID string) (namespace, error)
+	GetTenant(token string, params paramMap) (namespace, error)
+	GetTenantById(token string, userID string, params paramMap) (namespace, error)
 }
 
 type TenantTokenLocator interface {
@@ -67,6 +69,8 @@ type cacheData struct {
 	Token     string
 	Namespace namespace
 }
+
+type paramMap map[string]string
 
 type OSIOAuth struct {
 	RequestTenantLocation TenantLocator
@@ -113,29 +117,29 @@ func NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret string) *OSIOAuth {
 	}
 }
 
-func cacheResolverByID(tenantLocator TenantLocator, tokenLocator TenantTokenLocator, srvAccTokenLocator SrvAccTokenLocator, secretLocator SecretLocator, token string, tokenType TokenType, userID string) Resolver {
+func (a *OSIOAuth) cacheResolverByID(token string, userID string, params paramMap) Resolver {
 	return func() (interface{}, error) {
-		namespace, err := tenantLocator.GetTenantById(token, tokenType, userID)
+		namespace, err := a.RequestTenantLocation.GetTenantById(token, userID, params)
 		if err != nil {
 			log.Errorf("Failed to locate tenant, %v", err)
 			return cacheData{}, err
 		}
-		osoProxySAToken, err := srvAccTokenLocator()
+		osoProxySAToken, err := a.RequestSrvAccToken()
 		if err != nil {
 			log.Errorf("Failed to locate service account token, %v", err)
 			return cacheData{}, err
 		}
-		clusterToken, err := tokenLocator.GetTokenWithSAToken(osoProxySAToken, namespace.ClusterURL)
+		clusterToken, err := a.RequestTenantToken.GetTokenWithSAToken(osoProxySAToken, namespace.ClusterURL)
 		if err != nil {
 			log.Errorf("Failed to locate cluster token, %v", err)
 			return cacheData{}, err
 		}
-		secretName, err := secretLocator.GetName(namespace.ClusterURL, clusterToken, namespace.Name, namespace.Type)
+		secretName, err := a.RequestSecretLocation.GetName(namespace.ClusterURL, clusterToken, namespace.Name, namespace.Type)
 		if err != nil {
 			log.Errorf("Failed to locate secret name, %v", err)
 			return cacheData{}, err
 		}
-		osoToken, err := secretLocator.GetSecret(namespace.ClusterURL, clusterToken, namespace.Name, secretName)
+		osoToken, err := a.RequestSecretLocation.GetSecret(namespace.ClusterURL, clusterToken, namespace.Name, secretName)
 		if err != nil {
 			log.Errorf("Failed to get secret, %v", err)
 			return cacheData{}, err
@@ -144,14 +148,14 @@ func cacheResolverByID(tenantLocator TenantLocator, tokenLocator TenantTokenLoca
 	}
 }
 
-func cacheResolverByToken(tenantLocator TenantLocator, tokenLocator TenantTokenLocator, token string, tokenType TokenType) Resolver {
+func (a *OSIOAuth) cacheResolverByToken(token string, params paramMap) Resolver {
 	return func() (interface{}, error) {
-		namespace, err := tenantLocator.GetTenant(token, tokenType)
+		namespace, err := a.RequestTenantLocation.GetTenant(token, params)
 		if err != nil {
 			log.Errorf("Failed to locate tenant, %v", err)
 			return cacheData{}, err
 		}
-		osoToken, err := tokenLocator.GetTokenWithUserToken(token, namespace.ClusterURL)
+		osoToken, err := a.RequestTenantToken.GetTokenWithUserToken(token, namespace.ClusterURL)
 		if err != nil {
 			log.Errorf("Failed to locate token, %v", err)
 			return cacheData{}, err
@@ -160,9 +164,9 @@ func cacheResolverByToken(tenantLocator TenantLocator, tokenLocator TenantTokenL
 	}
 }
 
-func (a *OSIOAuth) resolveByToken(token string, tokenType TokenType) (cacheData, error) {
+func (a *OSIOAuth) resolveByToken(token string, params paramMap) (cacheData, error) {
 	key := cacheKey(token)
-	val, err := a.cache.Get(key, cacheResolverByToken(a.RequestTenantLocation, a.RequestTenantToken, token, tokenType)).Get()
+	val, err := a.cache.Get(key, a.cacheResolverByToken(token, params)).Get()
 
 	if data, ok := val.(cacheData); ok {
 		return data, err
@@ -170,10 +174,10 @@ func (a *OSIOAuth) resolveByToken(token string, tokenType TokenType) (cacheData,
 	return cacheData{}, err
 }
 
-func (a *OSIOAuth) resolveByID(userID, token string, tokenType TokenType) (cacheData, error) {
+func (a *OSIOAuth) resolveByID(userID, token string, params paramMap) (cacheData, error) {
 	plainKey := fmt.Sprintf("%s_%s", token, userID)
 	key := cacheKey(plainKey)
-	val, err := a.cache.Get(key, cacheResolverByID(a.RequestTenantLocation, a.RequestTenantToken, a.RequestSrvAccToken, a.RequestSecretLocation, token, tokenType, userID)).Get()
+	val, err := a.cache.Get(key, a.cacheResolverByID(token, userID, params)).Get()
 
 	if data, ok := val.(cacheData); ok {
 		return data, err
@@ -200,6 +204,12 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				return
 			}
 
+			params := getPathSegmentParam(ParamPathSegment, r.URL.Path)
+			if params != nil && params[NamespaceType] == "" {
+				// tokenType use to determine namespace
+				params[NamespaceType] = string(tokenType)
+			}
+
 			// retrieve cache data
 			var cached cacheData
 			if tokenType != UserToken {
@@ -209,9 +219,9 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 					rw.WriteHeader(http.StatusUnauthorized)
 					return
 				}
-				cached, err = a.resolveByID(userID, token, tokenType)
+				cached, err = a.resolveByID(userID, token, params)
 			} else {
-				cached, err = a.resolveByToken(token, tokenType)
+				cached, err = a.resolveByToken(token, params)
 			}
 			if err != nil {
 				log.Errorf("Cache resolve failed, %v", err)
@@ -222,7 +232,10 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 			// routing or redirect
 			reqType := getRequestType(r)
 			reqType.stripPathPrefix(r)
+			newReqPath := replacePathSegment(r.URL.Path, ParamPathSegment, cached.Namespace.Name)
+			setReqPath(r, newReqPath)
 			targetURL := normalizeURL(reqType.getTargetURL(cached.Namespace))
+
 			if reqType.isRedirectRequest() {
 				redirectURL := reqType.getRedirectURL(targetURL, r)
 				http.Redirect(rw, r, redirectURL, http.StatusTemporaryRedirect)
@@ -344,9 +357,14 @@ func cacheKey(plainKey string) string {
 
 func stripRequestPathPrefix(req *http.Request, pathPrefix, stripPath string) {
 	if strings.HasPrefix(req.URL.Path, pathPrefix) {
-		req.URL.Path = stripPrefix(req.URL.Path, stripPath)
-		req.RequestURI = req.URL.RequestURI()
+		path := stripPrefix(req.URL.Path, stripPath)
+		setReqPath(req, path)
 	}
+}
+
+func setReqPath(req *http.Request, path string) {
+	req.URL.Path = path
+	req.RequestURI = req.URL.RequestURI()
 }
 
 func stripPrefix(s, prefix string) string {
@@ -416,4 +434,54 @@ func removeUserID(req *http.Request) {
 			req.URL.RawQuery = q.Encode()
 		}
 	}
+}
+
+// /api/v1/namespaces/ns;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods
+func getPathSegmentParam(pathSegName, path string) paramMap {
+	var params paramMap = make(map[string]string)
+	segments := strings.Split(path, "/")
+	for _, segment := range segments {
+		parts := strings.Split(segment, ";")
+		if len(parts) >= 2 {
+			segName := parts[0]
+			if segName == pathSegName {
+				for i := 1; i < len(parts); i++ {
+					paramParts := strings.Split(parts[i], "=")
+					if len(paramParts) == 2 {
+						params[paramParts[0]] = paramParts[1]
+					}
+				}
+				if len(params) > 0 {
+					return params
+				}
+			}
+		}
+	}
+	return params
+}
+
+func replacePathSegment(path, pathSegName, newPathSeg string) string {
+	targetSegInd := -1
+	newPath := path
+
+	segments := strings.Split(path, "/")
+	for ind, segment := range segments {
+		parts := strings.Split(segment, ";")
+		if len(parts) >= 2 {
+			segName := parts[0]
+			if segName == pathSegName {
+				targetSegInd = ind
+				break
+			}
+		}
+	}
+	if targetSegInd != -1 {
+		if newPathSeg != "" {
+			segments[targetSegInd] = newPathSeg
+		} else {
+			segments = append(segments[:targetSegInd], segments[targetSegInd+1:]...)
+		}
+		newPath = strings.Join(segments, "/")
+	}
+	return newPath
 }

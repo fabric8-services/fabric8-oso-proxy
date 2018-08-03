@@ -14,14 +14,14 @@ type tenantLocator struct {
 	tenantURL string
 }
 
-func (t *tenantLocator) GetTenant(token string, tokenType TokenType) (namespace, error) {
+func (t *tenantLocator) GetTenant(token string, params paramMap) (namespace, error) {
 	url := fmt.Sprintf("%s/tenant", t.tenantURL)
-	return locateTenant(t.client, url, token, tokenType)
+	return locateTenant(t.client, url, token, params)
 }
 
-func (t *tenantLocator) GetTenantById(token string, tokenType TokenType, userID string) (namespace, error) {
+func (t *tenantLocator) GetTenantById(token string, userID string, params paramMap) (namespace, error) {
 	url := fmt.Sprintf("%s/tenants/%s", t.tenantURL, userID)
-	return locateTenant(t.client, url, token, tokenType)
+	return locateTenant(t.client, url, token, params)
 }
 
 func CreateTenantLocator(client *http.Client, tenantBaseURL string) TenantLocator {
@@ -49,24 +49,25 @@ type namespace struct {
 	ClusterLoggingURL string `json:"cluster-logging-url,omitempty"`
 }
 
-func getNamespace(resp response, tokenType TokenType) (ns namespace, err error) {
+func getNamespace(resp response, nsType string) (ns namespace, err error) {
 	if len(resp.Data.Attributes.Namespaces) == 0 {
 		return ns, fmt.Errorf("no namespace found")
 	}
 	for _, namespace := range resp.Data.Attributes.Namespaces {
-		if namespace.Type == string(tokenType) {
+		if namespace.Type == nsType {
 			return namespace, nil
 		}
 	}
 	return ns, fmt.Errorf("no namespace matched")
 }
 
-func locateTenant(client *http.Client, url, token string, tokenType TokenType) (ns namespace, err error) {
+func locateTenant(client *http.Client, url, token string, params paramMap) (ns namespace, err error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return ns, err
 	}
 	req.Header.Set(Authorization, "Bearer "+token)
+	setParams(req, params)
 	resp, err := client.Do(req)
 	if resp.StatusCode != http.StatusOK {
 		return ns, fmt.Errorf("Call to '%s' failed with status '%s'", url, resp.Status)
@@ -78,5 +79,16 @@ func locateTenant(client *http.Client, url, token string, tokenType TokenType) (
 	if err != nil {
 		return ns, err
 	}
-	return getNamespace(r, tokenType)
+	return getNamespace(r, params[NamespaceType])
+}
+
+func setParams(req *http.Request, params paramMap) {
+	if params == nil || len(params) == 0 {
+		return
+	}
+	q := req.URL.Query()
+	for key, value := range params {
+		q.Set(key, value)
+	}
+	req.URL.RawQuery = q.Encode()
 }

@@ -45,44 +45,44 @@ var tokenMap = map[string]string{
 
 var paramCtx = testParamCtx{tables: []testParamData{
 	{
-		"/api/v1/namespaces/ns;type=stage/pods/p;space=s1111?w=true",
+		"/api/v1/namespaces/ns;type=stage;space=s1111;w=true/pods",
 		"ta2222",
 		http.StatusOK,
 		"/api/v1/namespaces/u1111-preview-stage/pods",
 	},
 	{
-		"/api/v1/namespaces/ns;type=run/pods/p;space=s1111?w=false",
+		"/api/v1/namespaces/ns;type=run;space=s1111;w=false/pods",
 		"ta2222",
 		http.StatusNotFound,
 		"",
 	},
 	{
-		"/api/v1/namespaces/ns;type=user/pods/p;space=s1111?w=false",
+		"/api/v1/namespaces/ns;type=user;space=s1111;w=false/pods",
 		"ta2222",
 		http.StatusOK,
 		"/api/v1/namespaces/u1111-preview-user/pods",
 	},
 	{
-		"/api/v1/namespaces/ns;type=run/pods/p;space=s1111?w=true",
+		"/api/v1/namespaces/ns;type=run;space=s1111;w=true/pods",
 		"ta3333",
 		http.StatusForbidden,
 		"",
 	},
 	{
-		"/api/v1/namespaces/ns;type=stage/pods?w=true",
+		"/api/v1/namespaces/ns;type=stage;w=true/pods",
 		"ta1111",
 		http.StatusOK,
 		"/api/v1/namespaces/u1111-preview-stage/pods",
 	},
 	{
-		"/api/v1/namespaces/ns;type=run/pods?w=false",
+		"/api/v1/namespaces/ns;type=run;w=false/pods",
 		"ta1111",
 		http.StatusNotFound,
 		"",
 	},
 }}
 
-func tTestParam(t *testing.T) {
+func testParam(t *testing.T) {
 	os.Setenv("AUTH_TOKEN_KEY", "foo")
 
 	tenantServer := createServer(paramCtx.serveTenantRequest)

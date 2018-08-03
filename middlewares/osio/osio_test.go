@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -352,6 +353,87 @@ func TestStripPathPrefix(t *testing.T) {
 	}
 }
 
+func TestGetRequestParam(t *testing.T) {
+	tables := []struct {
+		name       string
+		path       string
+		wantParams paramMap
+	}{
+		{
+			"basic correct path segment",
+			"/api/v1/namespaces/ns;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods",
+			map[string]string{"type": "stage", "space": "997f146d-b0f4-4a97-ab20-6414878d9508", "w": "true"},
+		},
+		{
+			"basic with shuffle param",
+			"/api/v1/namespaces/ns;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true;type=stage;/pods",
+			map[string]string{"type": "stage", "space": "997f146d-b0f4-4a97-ab20-6414878d9508", "w": "true"},
+		},
+		{
+			"wrong path segment",
+			"/api/v1/namespaces/NS;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods",
+			map[string]string{},
+		},
+		{
+			"wrong then right path segment",
+			"/api/v1/ns/namespaces/ns;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods",
+			map[string]string{"type": "stage", "space": "997f146d-b0f4-4a97-ab20-6414878d9508", "w": "true"},
+		},
+	}
+
+	for _, table := range tables {
+		t.Run(table.name, func(t *testing.T) {
+			params := getPathSegmentParam(ParamPathSegment, table.path)
+			match(t, table.wantParams, params)
+		})
+	}
+}
+
+func TestReplacePathSegment(t *testing.T) {
+	tables := []struct {
+		path    string
+		segName string
+		pathSeg string
+		want    string
+	}{
+		{
+			"/api/v1/namespaces/ns;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods",
+			ParamPathSegment,
+			"user1111-preview-stage",
+			"/api/v1/namespaces/user1111-preview-stage/pods",
+		},
+		{
+			"/api/v1/namespaces/ns;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods",
+			ParamPathSegment,
+			"",
+			"/api/v1/namespaces/pods",
+		},
+		{
+			"/api/v1/NS/namespaces/ns;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods",
+			ParamPathSegment,
+			"user1111-preview-stage",
+			"/api/v1/NS/namespaces/user1111-preview-stage/pods",
+		},
+		{
+			"/api/v1/namespaces/NS;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods",
+			ParamPathSegment,
+			"user1111-preview-stage",
+			"/api/v1/namespaces/NS;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods",
+		},
+		{
+			"/api/v1/namespaces/ns;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods",
+			strings.ToUpper(ParamPathSegment),
+			"user1111-preview-stage",
+			"/api/v1/namespaces/ns;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods",
+		},
+	}
+
+	for _, table := range tables {
+		got := replacePathSegment(table.path, table.segName, table.pathSeg)
+		assert.Equal(t, got, table.want)
+	}
+}
+
 func createRequestWithPath(path string) *http.Request {
 	req := &http.Request{}
 	req.URL = &url.URL{Path: path}
@@ -363,4 +445,11 @@ func assertRequestPath(t *testing.T, req *http.Request, expectedPath string) {
 	t.Helper()
 	assert.Equal(t, expectedPath, req.URL.Path)
 	assert.Equal(t, expectedPath, req.RequestURI)
+}
+
+func match(t *testing.T, expected, actual paramMap) {
+	t.Helper()
+	for key, value := range expected {
+		assert.Equal(t, value, actual[key])
+	}
 }

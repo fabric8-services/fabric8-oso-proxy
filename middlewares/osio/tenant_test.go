@@ -39,7 +39,9 @@ func TestTenantServiceClient(t *testing.T) {
 				"http://"+server.Listener.Addr().String(),
 			)
 
-			ns, err := locator.GetTenant("xxxxx", UserToken)
+			params := make(map[string]string)
+			params[NamespaceType] = string(UserToken)
+			ns, err := locator.GetTenant("xxxxx", params)
 			url := ns.ClusterURL
 			assert.Equal(t, test.url, url, "expected URL to be equal")
 			if test.err == nil {
