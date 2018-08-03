@@ -365,8 +365,10 @@ func extractUserID(req *http.Request) string {
 	userID := ""
 	if req.Header.Get(UserIDHeader) != "" {
 		userID = req.Header.Get(UserIDHeader)
+		log.Infof("Got header '%s' with value '%s'", UserIDHeader, userID)
 	} else if req.URL.Query().Get(UserIDParam) != "" {
 		userID = req.URL.Query().Get(UserIDParam)
+		log.Infof("Got query param '%s' with value '%s'", UserIDParam, userID)
 		if strings.Contains(userID, "/") {
 			endInd := strings.Index(userID, "/")
 			userID = userID[:endInd]
