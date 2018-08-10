@@ -70,7 +70,10 @@ func locateTenant(client *http.Client, url, token string, params paramMap) (ns n
 	setParams(req, params)
 	resp, err := client.Do(req)
 	if resp.StatusCode != http.StatusOK {
-		return ns, fmt.Errorf("Call to '%s' failed with status '%s'", url, resp.Status)
+		return ns, httpErr{
+			err:        fmt.Sprintf("Call to '%s' failed with status '%s'", url, resp.Status),
+			statusCode: resp.StatusCode,
+		}
 	}
 	defer resp.Body.Close()
 

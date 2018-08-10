@@ -81,6 +81,15 @@ type OSIOAuth struct {
 	cache                 *Cache
 }
 
+type httpErr struct {
+	err        string
+	statusCode int
+}
+
+func (e httpErr) Error() string {
+	return e.err
+}
+
 func NewPreConfiguredOSIOAuth() *OSIOAuth {
 	authTokenKey := os.Getenv("AUTH_TOKEN_KEY")
 	if authTokenKey == "" {
@@ -204,7 +213,7 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				return
 			}
 
-			params := getPathSegmentParam(ParamPathSegment, r.URL.Path)
+			params := getPathSegmentParam(r.URL.Path, ParamPathSegment)
 			if params != nil && params[NamespaceType] == "" {
 				// tokenType use to determine namespace
 				params[NamespaceType] = string(tokenType)
@@ -225,7 +234,11 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 			}
 			if err != nil {
 				log.Errorf("Cache resolve failed, %v", err)
-				rw.WriteHeader(http.StatusUnauthorized)
+				if herr, ok := err.(httpErr); ok {
+					rw.WriteHeader(herr.statusCode)
+				} else {
+					rw.WriteHeader(http.StatusUnauthorized)
+				}
 				return
 			}
 
@@ -437,7 +450,7 @@ func removeUserID(req *http.Request) {
 }
 
 // /api/v1/namespaces/ns;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods
-func getPathSegmentParam(pathSegName, path string) paramMap {
+func getPathSegmentParam(path, pathSegName string) paramMap {
 	var params paramMap = make(map[string]string)
 	segments := strings.Split(path, "/")
 	for _, segment := range segments {
