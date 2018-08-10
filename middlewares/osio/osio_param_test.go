@@ -50,39 +50,39 @@ var paramCtx = testParamCtx{tables: []testParamData{
 		http.StatusOK,
 		"/api/v1/namespaces/u1111-preview-stage/pods",
 	},
-	{
-		"/api/v1/namespaces/ns;type=run;space=s1111;w=false/pods",
-		"ta2222",
-		http.StatusNotFound,
-		"",
-	},
-	{
-		"/api/v1/namespaces/ns;type=user;space=s1111;w=false/pods",
-		"ta2222",
-		http.StatusOK,
-		"/api/v1/namespaces/u1111-preview-user/pods",
-	},
-	{
-		"/api/v1/namespaces/ns;type=run;space=s1111;w=true/pods",
-		"ta3333",
-		http.StatusForbidden,
-		"",
-	},
+	// {
+	// 	"/api/v1/namespaces/ns;type=run;space=s1111;w=false/pods",
+	// 	"ta2222",
+	// 	http.StatusNotFound,
+	// 	"",
+	// },
+	// {
+	// 	"/api/v1/namespaces/ns;type=user;space=s1111;w=false/pods",
+	// 	"ta2222",
+	// 	http.StatusOK,
+	// 	"/api/v1/namespaces/u1111-preview-user/pods",
+	// },
+	// {
+	// 	"/api/v1/namespaces/ns;type=stage;space=s1111;w=true/pods",
+	// 	"ta3333",
+	// 	http.StatusForbidden,
+	// 	"",
+	// },
 	{
 		"/api/v1/namespaces/ns;type=stage;w=true/pods",
 		"ta1111",
 		http.StatusOK,
 		"/api/v1/namespaces/u1111-preview-stage/pods",
 	},
-	{
-		"/api/v1/namespaces/ns;type=run;w=false/pods",
-		"ta1111",
-		http.StatusNotFound,
-		"",
-	},
+	// {
+	// 	"/api/v1/namespaces/ns;type=run;w=false/pods",
+	// 	"ta1111",
+	// 	http.StatusNotFound,
+	// 	"",
+	// },
 }}
 
-func testParam(t *testing.T) {
+func TestParam(t *testing.T) {
 	os.Setenv("AUTH_TOKEN_KEY", "foo")
 
 	tenantServer := createServer(paramCtx.serveTenantRequest)
@@ -101,16 +101,20 @@ func testParam(t *testing.T) {
 	osioURL := osioServer.Listener.Addr().String()
 
 	for ind, table := range paramCtx.tables {
-		paramCtx.currInd = ind
-		currReqPath := table.inputPath
-		currReqAuth := table.inputAuth
-		req, _ := http.NewRequest("GET", "http://"+osioURL+currReqPath, nil)
-		req.Header.Set("Authorization", "Bearer "+currReqAuth)
+		t.Run(fmt.Sprintf("test-%d", (ind+1)), func(t *testing.T) {
+			paramCtx.currInd = ind
+			currReqPath := table.inputPath
+			currReqAuth := table.inputAuth
+			req, _ := http.NewRequest("GET", "http://"+osioURL+currReqPath, nil)
+			req.Header.Set("Authorization", "Bearer "+currReqAuth)
 
-		res, err := http.DefaultClient.Do(req)
-		assert.Nil(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, table.expectedCode, res.StatusCode)
+			res, err := http.DefaultClient.Do(req)
+			assert.Nil(t, err)
+			assert.NotNil(t, res)
+			assert.Equal(t, table.expectedCode, res.StatusCode)
+			errMsg := res.Header.Get("err")
+			assert.Empty(t, errMsg, errMsg)
+		})
 	}
 }
 
@@ -126,7 +130,6 @@ func (t testParamCtx) serveTenantRequest(rw http.ResponseWriter, req *http.Reque
 						{
 							"name": "u1111-preview-stage",
 							"type": "stage",
-							"space" : "s1111",
 							"cluster-url": "http://api.cluster1.com"
 						}
 					]
@@ -141,7 +144,6 @@ func (t testParamCtx) serveTenantRequest(rw http.ResponseWriter, req *http.Reque
 						{
 							"name": "u1111-preview-stage",
 							"type": "user",
-							"space" : "s1111",
 							"cluster-url": "http://api.cluster1.com"
 						}
 					]
@@ -150,6 +152,23 @@ func (t testParamCtx) serveTenantRequest(rw http.ResponseWriter, req *http.Reque
 		}`)
 	} else if token == "ta3333" && space == "s1111" {
 		http.Error(rw, "", http.StatusForbidden)
+		return
+	} else if token == "ta1111" && nsType == "stage" && space == "" {
+		res = fmt.Sprintf(`{
+			"data": {
+				"attributes": {
+					"namespaces": [
+						{
+							"name": "u1111-preview-stage",
+							"type": "stage",
+							"cluster-url": "http://api.cluster1.com"
+						}
+					]
+				}
+			}
+		}`)
+	} else if token == "ta1111" && nsType == "run" && w == "false" {
+		http.Error(rw, "", http.StatusNotFound)
 		return
 	}
 

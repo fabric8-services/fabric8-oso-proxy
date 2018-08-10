@@ -383,7 +383,7 @@ func TestGetRequestParam(t *testing.T) {
 
 	for _, table := range tables {
 		t.Run(table.name, func(t *testing.T) {
-			params := getPathSegmentParam(ParamPathSegment, table.path)
+			params := getPathSegmentParam(table.path, ParamPathSegment)
 			match(t, table.wantParams, params)
 		})
 	}

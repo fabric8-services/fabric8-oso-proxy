@@ -60,7 +60,7 @@ func ServeTenantRequest(rw http.ResponseWriter, req *http.Request) {
 		metricsHost = "http://127.0.0.1:7073"
 		apiHost = "http://127.0.0.1:8083" // :8083 is not present in toml file
 	case strings.HasSuffix(sub, "4444"):
-		rw.WriteHeader(http.StatusNotFound)
+		rw.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 

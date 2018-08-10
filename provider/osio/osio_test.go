@@ -129,6 +129,7 @@ func TestCreateBackend(t *testing.T) {
 }
 
 func checkConfig(t *testing.T, config *types.Configuration, ruleCount int) {
+	t.Helper()
 	require.NotNil(t, config)
 	require.NotNil(t, config.Frontends)
 	require.NotNil(t, config.Backends)
@@ -137,6 +138,7 @@ func checkConfig(t *testing.T, config *types.Configuration, ruleCount int) {
 }
 
 func checkDefaultBackendURL(t *testing.T, config *types.Configuration, expectedURL string) {
+	t.Helper()
 	defaultBackend := config.Backends["default"]
 	require.NotZero(t, defaultBackend)
 	server1URL := defaultBackend.Servers["server1"].URL
