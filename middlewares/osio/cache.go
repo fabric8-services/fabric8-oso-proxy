@@ -43,14 +43,16 @@ func (r *ResolverPromise) Get() (interface{}, error) {
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-
 	go func(wg *sync.WaitGroup, resolver Resolver) {
 		r.value, r.err = resolver()
 		wg.Done()
 
 	}(&wg, r.resolver)
 	wg.Wait()
-	r.resolved = true
+
+	if r.err == nil {
+		r.resolved = true
+	}
 
 	return r.value, r.err
 }
