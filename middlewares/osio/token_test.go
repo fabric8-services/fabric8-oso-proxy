@@ -30,6 +30,7 @@ func TestTokenServiceClient(t *testing.T) {
 			locator := CreateTenantTokenLocator(
 				http.DefaultClient,
 				"http://"+server.Listener.Addr().String()+"/",
+				"foo",
 			)
 
 			url, err := locator.GetTokenWithUserToken("xxxxx", "http://x.com")

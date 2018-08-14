@@ -17,6 +17,7 @@ const (
 	UserIDParam      = "identity_id"
 	ParamPathSegment = "ns"
 	NamespaceType    = "type"
+	Write            = "w"
 )
 
 type RequestType string
@@ -70,8 +71,6 @@ type cacheData struct {
 	Namespace namespace
 }
 
-type paramMap map[string]string
-
 type OSIOAuth struct {
 	RequestTenantLocation TenantLocator
 	RequestTenantToken    TenantTokenLocator
@@ -80,6 +79,19 @@ type OSIOAuth struct {
 	RequestTokenType      TokenTypeLocator
 	nsCache               *Cache
 	tokenCache            *Cache
+}
+
+type paramMap map[string]string
+
+func (m paramMap) getKey(delim string) string {
+	key := ""
+	if m[NamespaceType] != "" {
+		key = key + delim + m[NamespaceType]
+	}
+	if m["space"] != "" {
+		key = key + delim + m["space"]
+	}
+	return key
 }
 
 type httpErr struct {
@@ -113,13 +125,13 @@ func NewPreConfiguredOSIOAuth() *OSIOAuth {
 	if len(srvAccSecret) <= 0 {
 		panic("Missing SERVICE_ACCOUNT_SECRET")
 	}
-	return NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret)
+	return NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret, authTokenKey)
 }
 
-func NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret string) *OSIOAuth {
+func NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret, authTokenKey string) *OSIOAuth {
 	return &OSIOAuth{
 		RequestTenantLocation: CreateTenantLocator(http.DefaultClient, tenantURL),
-		RequestTenantToken:    CreateTenantTokenLocator(http.DefaultClient, authURL),
+		RequestTenantToken:    CreateTenantTokenLocator(http.DefaultClient, authURL, authTokenKey),
 		RequestSrvAccToken:    CreateSrvAccTokenLocator(authURL, srvAccID, srvAccSecret),
 		RequestSecretLocation: CreateSecretLocator(http.DefaultClient),
 		RequestTokenType:      CreateTokenTypeLocator(http.DefaultClient, authURL),
@@ -139,7 +151,7 @@ func (a *OSIOAuth) resolveNamespaceByID(token string, userID string, params para
 	}
 }
 
-func (a *OSIOAuth) resolveTokenByID(token string, userID string, params paramMap, ns namespace) Resolver {
+func (a *OSIOAuth) resolveTokenByID(ns namespace) Resolver {
 	return func() (interface{}, error) {
 		osoProxySAToken, err := a.RequestSrvAccToken()
 		if err != nil {
@@ -176,7 +188,7 @@ func (a *OSIOAuth) resolveNamespaceByToken(token string, params paramMap) Resolv
 	}
 }
 
-func (a *OSIOAuth) resolveTokenByToken(token string, params paramMap, ns namespace) Resolver {
+func (a *OSIOAuth) resolveTokenByToken(token string, ns namespace) Resolver {
 	return func() (interface{}, error) {
 		osoToken, err := a.RequestTenantToken.GetTokenWithUserToken(token, ns.ClusterURL)
 		if err != nil {
@@ -188,7 +200,8 @@ func (a *OSIOAuth) resolveTokenByToken(token string, params paramMap, ns namespa
 }
 
 func (a *OSIOAuth) resolveByToken(token string, params paramMap) (cacheData, error) {
-	nsKey := cacheKey(token)
+	plainKey := token + params.getKey("_")
+	nsKey := cacheKey(plainKey)
 	val, err := a.nsCache.Get(nsKey, a.resolveNamespaceByToken(token, params)).Get()
 	if err != nil {
 		return cacheData{}, err
@@ -197,7 +210,7 @@ func (a *OSIOAuth) resolveByToken(token string, params paramMap) (cacheData, err
 	if ns, ok := val.(namespace); ok {
 		plainKey := fmt.Sprintf("%s_%s", token, ns.Name)
 		tokenKey := cacheKey(plainKey)
-		val, err := a.tokenCache.Get(tokenKey, a.resolveTokenByToken(token, params, ns)).Get()
+		val, err := a.tokenCache.Get(tokenKey, a.resolveTokenByToken(token, ns)).Get()
 		if err != nil {
 			return cacheData{}, err
 		}
@@ -210,7 +223,7 @@ func (a *OSIOAuth) resolveByToken(token string, params paramMap) (cacheData, err
 }
 
 func (a *OSIOAuth) resolveByID(userID, token string, params paramMap) (cacheData, error) {
-	plainKey := fmt.Sprintf("%s_%s", token, userID)
+	plainKey := fmt.Sprintf("%s_%s", token, userID) + params.getKey("_")
 	nsKey := cacheKey(plainKey)
 	val, err := a.nsCache.Get(nsKey, a.resolveNamespaceByID(token, userID, params)).Get()
 	if err != nil {
@@ -220,7 +233,7 @@ func (a *OSIOAuth) resolveByID(userID, token string, params paramMap) (cacheData
 	if ns, ok := val.(namespace); ok {
 		plainKey := fmt.Sprintf("%s_%s_%s", token, userID, ns.Name)
 		tokenKey := cacheKey(plainKey)
-		val, err := a.tokenCache.Get(tokenKey, a.resolveTokenByID(token, userID, params, ns)).Get()
+		val, err := a.tokenCache.Get(tokenKey, a.resolveTokenByID(ns)).Get()
 		if err != nil {
 			return cacheData{}, err
 		}
@@ -251,8 +264,15 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				return
 			}
 
-			params := getPathSegmentParam(r.URL.Path, ParamPathSegment)
-			if params != nil && params[NamespaceType] == "" {
+			segFound, params := getPathSegmentParam(r.URL.Path, ParamPathSegment)
+			if segFound {
+				missingParam := checkRequiredParam(params)
+				if missingParam {
+					// VN: Check - HTTP 400 fine ?
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+			} else {
 				// tokenType use to determine namespace
 				params[NamespaceType] = string(tokenType)
 			}
@@ -488,14 +508,15 @@ func removeUserID(req *http.Request) {
 }
 
 // /api/v1/namespaces/ns;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods
-func getPathSegmentParam(path, pathSegName string) paramMap {
-	var params paramMap = make(map[string]string)
+func getPathSegmentParam(path, pathSegName string) (segFound bool, params paramMap) {
+	params = make(map[string]string)
 	segments := strings.Split(path, "/")
 	for _, segment := range segments {
 		parts := strings.Split(segment, ";")
 		if len(parts) >= 2 {
 			segName := parts[0]
 			if segName == pathSegName {
+				segFound = true
 				for i := 1; i < len(parts); i++ {
 					paramParts := strings.Split(parts[i], "=")
 					if len(paramParts) == 2 {
@@ -503,12 +524,12 @@ func getPathSegmentParam(path, pathSegName string) paramMap {
 					}
 				}
 				if len(params) > 0 {
-					return params
+					return segFound, params
 				}
 			}
 		}
 	}
-	return params
+	return segFound, params
 }
 
 func replacePathSegment(path, pathSegName, newPathSeg string) string {
@@ -535,4 +556,18 @@ func replacePathSegment(path, pathSegName, newPathSeg string) string {
 		newPath = strings.Join(segments, "/")
 	}
 	return newPath
+}
+
+func checkRequiredParam(params paramMap) bool {
+	missing := false
+	if params[NamespaceType] == "" {
+		log.Errorf("Bad request, missing type parameter")
+		missing = true
+	}
+	if !(params[Write] == "true" || params[Write] == "false") {
+		// VN: Check `w` is compulsory ?
+		log.Errorf("Bad request, missing w(write) parameter")
+		missing = true
+	}
+	return missing
 }
