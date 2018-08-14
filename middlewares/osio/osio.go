@@ -78,7 +78,8 @@ type OSIOAuth struct {
 	RequestSrvAccToken    SrvAccTokenLocator
 	RequestSecretLocation SecretLocator
 	RequestTokenType      TokenTypeLocator
-	cache                 *Cache
+	nsCache               *Cache
+	tokenCache            *Cache
 }
 
 type httpErr struct {
@@ -122,75 +123,112 @@ func NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret string) *OSIOAuth {
 		RequestSrvAccToken:    CreateSrvAccTokenLocator(authURL, srvAccID, srvAccSecret),
 		RequestSecretLocation: CreateSecretLocator(http.DefaultClient),
 		RequestTokenType:      CreateTokenTypeLocator(http.DefaultClient, authURL),
-		cache:                 &Cache{},
+		nsCache:               &Cache{},
+		tokenCache:            &Cache{},
 	}
 }
 
-func (a *OSIOAuth) cacheResolverByID(token string, userID string, params paramMap) Resolver {
+func (a *OSIOAuth) resolveNamespaceByID(token string, userID string, params paramMap) Resolver {
 	return func() (interface{}, error) {
-		namespace, err := a.RequestTenantLocation.GetTenantById(token, userID, params)
+		ns, err := a.RequestTenantLocation.GetTenantById(token, userID, params)
 		if err != nil {
 			log.Errorf("Failed to locate tenant, %v", err)
-			return cacheData{}, err
+			return namespace{}, err
 		}
+		return ns, nil
+	}
+}
+
+func (a *OSIOAuth) resolveTokenByID(token string, userID string, params paramMap, ns namespace) Resolver {
+	return func() (interface{}, error) {
 		osoProxySAToken, err := a.RequestSrvAccToken()
 		if err != nil {
 			log.Errorf("Failed to locate service account token, %v", err)
-			return cacheData{}, err
+			return "", err
 		}
-		clusterToken, err := a.RequestTenantToken.GetTokenWithSAToken(osoProxySAToken, namespace.ClusterURL)
+		clusterToken, err := a.RequestTenantToken.GetTokenWithSAToken(osoProxySAToken, ns.ClusterURL)
 		if err != nil {
 			log.Errorf("Failed to locate cluster token, %v", err)
-			return cacheData{}, err
+			return "", err
 		}
-		secretName, err := a.RequestSecretLocation.GetName(namespace.ClusterURL, clusterToken, namespace.Name, namespace.Type)
+		secretName, err := a.RequestSecretLocation.GetName(ns.ClusterURL, clusterToken, ns.Name, ns.Type)
 		if err != nil {
 			log.Errorf("Failed to locate secret name, %v", err)
-			return cacheData{}, err
+			return "", err
 		}
-		osoToken, err := a.RequestSecretLocation.GetSecret(namespace.ClusterURL, clusterToken, namespace.Name, secretName)
+		osoToken, err := a.RequestSecretLocation.GetSecret(ns.ClusterURL, clusterToken, ns.Name, secretName)
 		if err != nil {
 			log.Errorf("Failed to get secret, %v", err)
-			return cacheData{}, err
+			return "", err
 		}
-		return cacheData{Namespace: namespace, Token: osoToken}, nil
+		return osoToken, nil
 	}
 }
 
-func (a *OSIOAuth) cacheResolverByToken(token string, params paramMap) Resolver {
+func (a *OSIOAuth) resolveNamespaceByToken(token string, params paramMap) Resolver {
 	return func() (interface{}, error) {
-		namespace, err := a.RequestTenantLocation.GetTenant(token, params)
+		ns, err := a.RequestTenantLocation.GetTenant(token, params)
 		if err != nil {
 			log.Errorf("Failed to locate tenant, %v", err)
-			return cacheData{}, err
+			return namespace{}, err
 		}
-		osoToken, err := a.RequestTenantToken.GetTokenWithUserToken(token, namespace.ClusterURL)
+		return ns, nil
+	}
+}
+
+func (a *OSIOAuth) resolveTokenByToken(token string, params paramMap, ns namespace) Resolver {
+	return func() (interface{}, error) {
+		osoToken, err := a.RequestTenantToken.GetTokenWithUserToken(token, ns.ClusterURL)
 		if err != nil {
 			log.Errorf("Failed to locate token, %v", err)
-			return cacheData{}, err
+			return "", err
 		}
-		return cacheData{Namespace: namespace, Token: osoToken}, nil
+		return osoToken, nil
 	}
 }
 
 func (a *OSIOAuth) resolveByToken(token string, params paramMap) (cacheData, error) {
-	key := cacheKey(token)
-	val, err := a.cache.Get(key, a.cacheResolverByToken(token, params)).Get()
-
-	if data, ok := val.(cacheData); ok {
-		return data, err
+	nsKey := cacheKey(token)
+	val, err := a.nsCache.Get(nsKey, a.resolveNamespaceByToken(token, params)).Get()
+	if err != nil {
+		return cacheData{}, err
 	}
-	return cacheData{}, err
+
+	if ns, ok := val.(namespace); ok {
+		plainKey := fmt.Sprintf("%s_%s", token, ns.Name)
+		tokenKey := cacheKey(plainKey)
+		val, err := a.tokenCache.Get(tokenKey, a.resolveTokenByToken(token, params, ns)).Get()
+		if err != nil {
+			return cacheData{}, err
+		}
+		if token, ok := val.(string); ok {
+			return cacheData{Namespace: ns, Token: token}, nil
+		}
+	}
+
+	return cacheData{}, nil
 }
 
 func (a *OSIOAuth) resolveByID(userID, token string, params paramMap) (cacheData, error) {
 	plainKey := fmt.Sprintf("%s_%s", token, userID)
-	key := cacheKey(plainKey)
-	val, err := a.cache.Get(key, a.cacheResolverByID(token, userID, params)).Get()
-
-	if data, ok := val.(cacheData); ok {
-		return data, err
+	nsKey := cacheKey(plainKey)
+	val, err := a.nsCache.Get(nsKey, a.resolveNamespaceByID(token, userID, params)).Get()
+	if err != nil {
+		return cacheData{}, err
 	}
+
+	if ns, ok := val.(namespace); ok {
+		plainKey := fmt.Sprintf("%s_%s_%s", token, userID, ns.Name)
+		tokenKey := cacheKey(plainKey)
+		val, err := a.tokenCache.Get(tokenKey, a.resolveTokenByID(token, userID, params, ns)).Get()
+		if err != nil {
+			return cacheData{}, err
+		}
+		if token, ok := val.(string); ok {
+			return cacheData{Namespace: ns, Token: token}, nil
+		}
+	}
+
 	return cacheData{}, err
 }
 
