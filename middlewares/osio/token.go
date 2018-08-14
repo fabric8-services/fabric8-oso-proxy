@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 
 	"github.com/containous/traefik/provider/osio"
 	"golang.org/x/crypto/openpgp"
@@ -21,8 +20,9 @@ type tokenResponse struct {
 }
 
 type tenantTokenLocator struct {
-	client      *http.Client
-	authBaseURL string
+	client       *http.Client
+	authBaseURL  string
+	authTokenKey string
 }
 
 func (t *tenantTokenLocator) GetTokenWithUserToken(userToken, location string) (string, error) {
@@ -35,7 +35,7 @@ func (t *tenantTokenLocator) GetTokenWithSAToken(saToken, location string) (stri
 	if err != nil {
 		return "", err
 	}
-	passphrase := os.Getenv("AUTH_TOKEN_KEY")
+	passphrase := t.authTokenKey
 	clusterToken, err := gpgDecyptToken(encryptedClusterToken, passphrase)
 	if err != nil {
 		return "", err
@@ -60,8 +60,8 @@ func CreateSrvAccTokenLocator(authBaseURL, srvAccID, srvAccSecret string) SrvAcc
 	}
 }
 
-func CreateTenantTokenLocator(client *http.Client, authBaseURL string) TenantTokenLocator {
-	return &tenantTokenLocator{client: client, authBaseURL: authBaseURL}
+func CreateTenantTokenLocator(client *http.Client, authBaseURL, authTokenKey string) TenantTokenLocator {
+	return &tenantTokenLocator{client: client, authBaseURL: authBaseURL, authTokenKey: authTokenKey}
 }
 
 func locateToken(client *http.Client, authBaseURL, token, location string) (string, error) {

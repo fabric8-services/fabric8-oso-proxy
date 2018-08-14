@@ -357,33 +357,51 @@ func TestGetRequestParam(t *testing.T) {
 	tables := []struct {
 		name       string
 		path       string
+		wantFound  bool
 		wantParams paramMap
 	}{
 		{
 			"basic correct path segment",
 			"/api/v1/namespaces/ns;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods",
+			true,
 			map[string]string{"type": "stage", "space": "997f146d-b0f4-4a97-ab20-6414878d9508", "w": "true"},
 		},
 		{
 			"basic with shuffle param",
 			"/api/v1/namespaces/ns;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true;type=stage;/pods",
+			true,
 			map[string]string{"type": "stage", "space": "997f146d-b0f4-4a97-ab20-6414878d9508", "w": "true"},
 		},
 		{
 			"wrong path segment",
 			"/api/v1/namespaces/NS;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods",
+			false,
 			map[string]string{},
 		},
 		{
 			"wrong then right path segment",
 			"/api/v1/ns/namespaces/ns;type=stage;space=997f146d-b0f4-4a97-ab20-6414878d9508;w=true/pods",
+			true,
 			map[string]string{"type": "stage", "space": "997f146d-b0f4-4a97-ab20-6414878d9508", "w": "true"},
+		},
+		{
+			"seg found",
+			"/api/v1/namespaces/ns;/pods",
+			true,
+			map[string]string{},
+		},
+		{
+			"seg not found",
+			"/api/v1/namespaces/ns/pods",
+			false,
+			map[string]string{},
 		},
 	}
 
 	for _, table := range tables {
 		t.Run(table.name, func(t *testing.T) {
-			params := getPathSegmentParam(table.path, ParamPathSegment)
+			segFound, params := getPathSegmentParam(table.path, ParamPathSegment)
+			assert.Equal(t, table.wantFound, segFound)
 			match(t, table.wantParams, params)
 		})
 	}
@@ -431,6 +449,25 @@ func TestReplacePathSegment(t *testing.T) {
 	for _, table := range tables {
 		got := replacePathSegment(table.path, table.segName, table.pathSeg)
 		assert.Equal(t, got, table.want)
+	}
+}
+
+func TestCheckRequiredParam(t *testing.T) {
+	tables := []struct {
+		params paramMap
+		want   bool
+	}{
+		{map[string]string{}, true},
+		{map[string]string{"type": "user", "w": "true"}, false},
+		{map[string]string{"type": "user", "w": "false"}, false},
+		{map[string]string{"type": "user"}, true},
+		{map[string]string{"w": "false"}, true},
+		{map[string]string{"type": "user", "w": "TRUE"}, true},
+	}
+
+	for _, table := range tables {
+		got := checkRequiredParam(table.params)
+		assert.Equal(t, table.want, got)
 	}
 }
 

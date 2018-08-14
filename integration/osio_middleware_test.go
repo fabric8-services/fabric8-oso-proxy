@@ -43,6 +43,8 @@ func (s *OSIOMiddlewareSuite) TestOSIO(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer cmd.Process.Kill()
 
+	time.Sleep(1 * time.Second) // need to give time to traefik to load configuration
+
 	// Make some requests
 	req, _ := http.NewRequest("GET", "http://127.0.0.1:8000/test", nil)
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", common.TestTokenManager.ToTokenString(jwt.MapClaims{"sub": "1111"})))

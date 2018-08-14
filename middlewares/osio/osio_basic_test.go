@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -114,8 +113,6 @@ var mwCtx = testMiddlewareCtx{tables: []testMiddlewareData{
 }}
 
 func TestMiddleware(t *testing.T) {
-	os.Setenv("AUTH_TOKEN_KEY", "foo")
-
 	tenantServer := mwCtx.createServer(mwCtx.serveTenantRequest)
 	defer tenantServer.Close()
 	authServer := mwCtx.createServer(mwCtx.serverAuthRequest)
@@ -125,8 +122,9 @@ func TestMiddleware(t *testing.T) {
 	authURL := "http://" + authServer.Listener.Addr().String() + "/"
 	srvAccID := "sa1"
 	srvAccSecret := "secret"
+	authTokenKey := "foo"
 
-	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret)
+	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret, authTokenKey)
 	osio.RequestTokenType = mwCtx.testTokenTypeLocator
 	osioServer := mwCtx.createServer(mwCtx.serverOSIORequest(osio))
 	osioURL := osioServer.Listener.Addr().String()

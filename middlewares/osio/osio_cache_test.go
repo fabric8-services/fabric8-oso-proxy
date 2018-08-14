@@ -3,7 +3,6 @@ package osio
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -35,8 +34,6 @@ var cacheCtx = testCacheCtx{tables: []testCacheData{
 }}
 
 func TestCache(t *testing.T) {
-	os.Setenv("AUTH_TOKEN_KEY", "foo")
-
 	tenantServer := createServer(cacheCtx.serveTenantRequest)
 	defer tenantServer.Close()
 	authServer := createServer(cacheCtx.serverAuthRequest)
@@ -46,8 +43,9 @@ func TestCache(t *testing.T) {
 	authURL := "http://" + authServer.Listener.Addr().String() + "/"
 	srvAccID := "sa1"
 	srvAccSecret := "secret"
+	authTokenKey := "foo"
 
-	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret)
+	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret, authTokenKey)
 	osio.RequestTokenType = cacheCtx.testTokenTypeLocator
 	osioServer := createServer(serverOSIORequest(osio, cacheCtx.varifyHandler))
 	defer osioServer.Close()

@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -42,8 +41,6 @@ var cheCtx = testCheCtx{tables: []testCheData{
 }}
 
 func TestChe(t *testing.T) {
-	os.Setenv("AUTH_TOKEN_KEY", "foo")
-
 	authServer := cheCtx.createServer(cheCtx.serveAuthRequest)
 	defer authServer.Close()
 	tenantServer := cheCtx.createServer(cheCtx.serveTenantRequest)
@@ -53,8 +50,9 @@ func TestChe(t *testing.T) {
 	tenantURL := "http://" + tenantServer.Listener.Addr().String()
 	srvAccID := "sa1"
 	srvAccSecret := "secret"
+	authTokenKey := "foo"
 
-	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret)
+	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret, authTokenKey)
 	osio.RequestTokenType = cheCtx.testTokenTypeLocator
 	osioServer := cheCtx.createServer(cheCtx.serverOSIORequest(osio))
 	defer osioServer.Close()

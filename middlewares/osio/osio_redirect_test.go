@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -56,8 +55,6 @@ var redirectCtx = testRedirectCtx{table: []testRedirectData{
 }}
 
 func TestRedirect(t *testing.T) {
-	os.Setenv("AUTH_TOKEN_KEY", "foo")
-
 	authServer := redirectCtx.createServer(redirectCtx.serveAuthRequest)
 	defer authServer.Close()
 	tenantServer := redirectCtx.createServer(redirectCtx.serverTenantRequest)
@@ -67,8 +64,9 @@ func TestRedirect(t *testing.T) {
 	tenantURL := "http://" + tenantServer.Listener.Addr().String()
 	srvAccID := "sa1"
 	srvAccSecret := "secret"
+	authTokenKey := "foo"
 
-	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret)
+	osio := NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret, authTokenKey)
 	osio.RequestTokenType = redirectCtx.testTokenTypeLocator
 	osioServer := redirectCtx.createServer(redirectCtx.serveOSIORequest(osio))
 	defer osioServer.Close()
