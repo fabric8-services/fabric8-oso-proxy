@@ -43,7 +43,8 @@ func (s *OSIOMiddlewareSuite) TestOSIO(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer cmd.Process.Kill()
 
-	time.Sleep(1 * time.Second) // need to give time to traefik to load configuration
+	err = common.WaitTillReady("http://localhost:8000/ping")
+	c.Assert(err, check.IsNil)
 
 	// Make some requests
 	req, _ := http.NewRequest("GET", "http://127.0.0.1:8000/test", nil)
