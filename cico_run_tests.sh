@@ -21,8 +21,13 @@ docker run --detach=true -t \
 docker exec -t "$BUILDER-run" bash -ec 'go get github.com/jteeuwen/go-bindata/...'
 docker exec -t "$BUILDER-run" bash -ec 'go generate'
 docker exec -t "$BUILDER-run" bash -ec 'go build -o dist/traefik ./cmd/traefik'
-docker exec -t "$BUILDER-run" bash -ec 'go test -v ./middlewares/osio/'
-docker exec -t "$BUILDER-run" bash -ec 'go test -v ./provider/osio/'
+
+docker exec -t "$BUILDER-run" bash -ec 'go test -v ./middlewares/osio/ -coverprofile coverage.middlewares -covermode=set -timeout 5m'
+docker exec -t "$BUILDER-run" bash -ec 'go test -v ./provider/osio/ -coverprofile coverage.provider -covermode=set -timeout 5m'
 docker exec -t "$BUILDER-run" bash -ec 'go test -v ./integration/ -integration -osio'
 
-echo "CICO: ran tests without coverage"
+# Upload coverage to codecov.io
+# -t <upload_token> copy from https://codecov.io/gh/fabric8-services/fabric8-oso-proxy/settings
+bash <(curl -s https://codecov.io/bash) -t 3a135505-4f56-4dce-900e-e451b95601e5
+
+echo "CICO: ran tests and uploaded coverage"
