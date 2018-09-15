@@ -1,0 +1,24 @@
+@startuml
+
+participant traefik as "Traefik"
+participant provider as "OSIO\nProvider"
+participant auth as "Auth\nService"
+participant chan as "config chan"
+
+traefik -> provider : Provide(config chan)
+provider -> provider : shedule\nconfig provider
+traefik <-- provider
+
+note right : 15 mins as "refreshSeconds=900"
+loop n times every 15 mins
+activate provider
+provider -> provider : loadConfig()
+activate provider
+provider -> auth : /api/clusters
+provider <-- auth : []Cluster
+provider -> chan : types.ConfigMessage{"osio", Configuration}
+deactivate provider
+traefik <-- chan : types.ConfigMessage{"osio", Configuration}
+end
+
+@enduml

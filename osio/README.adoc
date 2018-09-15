@@ -1,0 +1,74 @@
+= Fabric8 OSO Proxy (Traefik Extension)
+:toc:
+:toclevels: 5
+:sectnums:
+:sectnumlevels: 4
+:toc-placement: preamble
+
+image:https://ci.centos.org/buildStatus/icon?job=devtools-fabric8-oso-proxy-build-master[Jenkins,link="https://ci.centos.org/view/Devtools/job/devtools-fabric8-oso-proxy-build-master/lastBuild/"]
+image:https://codecov.io/gh/fabric8-services/fabric8-oso-proxy/branch/master/graph/badge.svg[Codecov.io,link="https://codecov.io/gh/fabric8-services/fabric8-oso-proxy"]
+
+This give details on https://github.com/fabric8-services/fabric8-oso-proxy/[fabric8-services/fabric8-oso-proxy] project which is forked from https://github.com/containous/traefik[containous/traefik] project.
+
+== Overview
+
+OSO Proxy project is proxy between OSIO (OpenShift.io) and OSO (OpenShift Online server / OpneShift server).  It takes care of replacing OSIO Token (user token) with OSO Token.  Ideally, all calls from OSIO to OSO should go through oso-proxy but currently there are some exception due to some well known reason.
+
+OSO Proxy is forked from Traefik project.  Ideally, oso-proxy should have used Traefik as dependency and should not forked from Traefik but currently Traefik does not provide mechanism to plugin 3rd party extensions, so, oso-proxy is forked from Traefik and OSIO extensions were added directly into Traefik codebase.
+
+== OSO Proxy code
+
+This section list down all the code that is added in Traefik for OSO Proxy.
+
+- osio traefik provider pakcage - https://github.com/fabric8-services/fabric8-oso-proxy/tree/master/provider/osio[provider/osio]
+- osio traefik middleware package - https://github.com/fabric8-services/fabric8-oso-proxy/tree/master/middlewares/osio[middlewares/osio]
+- integation test package and files -
+ https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/integration/osio_middleware_test.go[osio_middleware_test.go],
+ https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/integration/fixtures/osio_middleware_config.toml[osio_middleware_config.toml],
+ https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/integration/osio_provider_test.go[osio_provider_test.go], 
+ https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/integration/fixtures/osio_provider_config.toml[osio_provider_config.toml], 
+ https://github.com/fabric8-services/fabric8-oso-proxy/tree/master/integration/common[integration/common]
+- build and deploy files -
+ https://github.com/fabric8-services/fabric8-oso-proxy/tree/master/openshift[openshift],
+ https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/cico_setup.sh[cico_setup.sh],
+ https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/cico_run_tests.sh[cico_run_tests.sh],
+ https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/cico_build_deploy.sh[cico_build_deploy.sh],
+ https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/Dockerfile.builder[Dockerfile.builder],
+ https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/Dockerfile.deploy[Dockerfile.deploy],
+ https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/Dockerfile.deploy.rhel[Dockerfile.deploy.rhel],
+- traefik and oso-proxy code combined files -
+ https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/configuration/configuration.go[configuration.go],
+ https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/configuration/provider_aggregator.go[provider_aggregator.go]
+ https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/server/server.go[server.go]
+
+NOTE: All files related to OSIO contains *osio* in file name so just searching file name cotaining *osio* will list all the relevant files.
+
+== OSIO and Traefik
+
+There are mainly two components added in traefik for OSIO in OSO Proxy project.
+
+=== Traefik Provider
+
+Traefik docs link: https://docs.traefik.io/basics/#frontends[frontends], https://docs.traefik.io/basics/#backends[backends]
+
+Traefik configuratin has two main elements called "frontends and backends" which provides details on routing/redirecting to traefik.  These configuations can be provided in multiple way to traefik.  For OSIO, we have implmentation "OSIO Traefik Provider" to provide these configuration details to traefik.
+
+OSIO provider https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/provider/osio/osio.go[code_link] implements Provider inerface from Traefik https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/provider/provider.go[code_link] and registered at https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/configuration/configuration.go[code_link].
+
+Here is basic sequence flow which shows OSIO Traefik provider operations:
+
+image::http://www.plantuml.com/plantuml/proxy?idx=0&src=https://raw.githubusercontent.com/fabric8-services/fabric8-oso-proxy/master/osio/docs/osio_traefik_provider_seq_flow.plantuml&fmt=svg[OSIO Traefik Provider - Sequence Flow]
+
+link:https://github.com/fabric8-services/fabric8-oso-proxy/edit/master/osio/docs/osio_traefik_provider_seq_flow.plantuml[Edit plantuml]
+
+=== Traefik Middleware
+
+This is a regular Go Middleware.  Each http request comes to traefik, it will call all middleware in sequence addded in https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/server/server.go[server.go].  There is a OSIO Traefik middleware added in server.go.  Please check, *Server* struct with *osioMiddleware* field having type **osio.OSIOAuth*.
+
+OSIO Traefik middleware mainly does two things.  First, it replaces OSIO User Token with OSO User token in http request.  Second, it sets traefik https://docs.traefik.io/basics/#matchers[Matchers] "Headers" with "Target" as key and "OSO Cluster URL" as value.  With help of "Target", traefik will redirect call to corresponding OSO Server.
+
+Here is basic sequence flow which shows OSIO Traefik middleware operations:
+
+image::http://www.plantuml.com/plantuml/proxy?idx=0&src=https://raw.githubusercontent.com/fabric8-services/fabric8-oso-proxy/master/osio/docs/osio_traefik_middleware_seq_flow.plantuml&fmt=svg[OSIO Traefik Middleware - Sequence Flow]
+
+link:https://github.com/fabric8-services/fabric8-oso-proxy/edit/master/osio/docs/osio_traefik_middleware_seq_flow.plantuml[Edit plantuml]
