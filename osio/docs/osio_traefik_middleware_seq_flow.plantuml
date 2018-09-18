@@ -1,0 +1,30 @@
+@startuml
+
+participant osio as "OSIO"
+participant traefik as "Traefik"
+participant middleware as "OSIO Middleware"
+participant tenant as "Tenant Service"
+participant auth as "Auth Service"
+participant request as "HTTP Request"
+participant next as "Next Traefik Middleware"
+participant oso as "OSO Server"
+
+osio -> traefik : https://proxy/api/path\n(OSIO Token)
+traefik -> middleware
+middleware -> tenant : /api/tenant\n(OSIO Token)
+middleware <-- tenant : namespace{ClusterURL}
+|||
+middleware -> auth : /api/token?for=ClusterURL\n(OSIO Token)
+middleware <-- auth : OSO Token
+|||
+middleware -> request : SetHeader("Target", ClusterURL)
+middleware -> request : SetHeader("Authorization", OSO Token)
+|||
+middleware -> next
+next -> oso : https://ClusterURL/api/path\n(OSO Token)
+next <-- oso : Response
+middleware <-- next : Response
+traefik <-- middleware : Response
+osio <-- traefik : Response
+
+@enduml
