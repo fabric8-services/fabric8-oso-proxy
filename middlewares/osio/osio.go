@@ -13,6 +13,7 @@ import (
 
 const (
 	Authorization = "Authorization"
+	ImpersonateGroupHeader = "Impersonate-Group"
 	UserIDHeader  = "Impersonate-User"
 	UserIDParam   = "identity_id"
 )
@@ -380,6 +381,11 @@ func extractUserID(req *http.Request) string {
 func removeUserID(req *http.Request) {
 	if req.Header.Get(UserIDHeader) != "" {
 		req.Header.Del(UserIDHeader)
+	}
+	// hot-fix for https://github.com/fabric8io/kubernetes-client/issues/1266
+	// Should be removed once kubernetes-client 4.1.1 is released and che / rh-che will be updated to use this version of kubernetes-client
+	if req.Header.Get(ImpersonateGroupHeader) != "" {
+		req.Header.Del(ImpersonateGroupHeader)
 	}
 	userID := req.URL.Query().Get(UserIDParam)
 	if userID != "" {
