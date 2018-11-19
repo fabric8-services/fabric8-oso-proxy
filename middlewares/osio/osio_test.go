@@ -77,6 +77,7 @@ func TestExtractUserID(t *testing.T) {
 
 func TestRemoveUserID(t *testing.T) {
 	userID := "11111111-1111-1111-1111-11111111"
+	impersonateGroup := "dummyGroup"
 
 	t.Run("UserID as header", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, "http://f8osoproxy.com", nil)
@@ -84,6 +85,19 @@ func TestRemoveUserID(t *testing.T) {
 		removeUserID(req)
 		actualUserID := req.Header.Get(UserIDHeader)
 		assert.Empty(t, actualUserID)
+		assert.Equal(t, "http://f8osoproxy.com", req.URL.String())
+	})
+
+	// See https://github.com/fabric8-services/fabric8-oso-proxy/pull/43
+	t.Run("UserID as header with 'Impersonate-Group'", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodGet, "http://f8osoproxy.com", nil)
+		req.Header.Set(UserIDHeader, userID)
+		req.Header.Set(ImpersonateGroupHeader, impersonateGroup)
+		removeUserID(req)
+		actualUserID := req.Header.Get(UserIDHeader)
+		actualImpersonateGroup := req.Header.Get(ImpersonateGroupHeader);
+		assert.Empty(t, actualUserID)
+		assert.Empty(t, actualImpersonateGroup)
 		assert.Equal(t, "http://f8osoproxy.com", req.URL.String())
 	})
 
