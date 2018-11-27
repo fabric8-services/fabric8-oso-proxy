@@ -15,7 +15,6 @@ const (
 	Authorization = "Authorization"
 	ImpersonateGroupHeader = "Impersonate-Group"
 	UserIDHeader  = "Impersonate-User"
-	UserIDParam   = "identity_id"
 )
 
 type RequestType string
@@ -367,13 +366,6 @@ func extractUserID(req *http.Request) string {
 	if req.Header.Get(UserIDHeader) != "" {
 		userID = req.Header.Get(UserIDHeader)
 		log.Infof("Got header '%s' with value '%s'", UserIDHeader, userID)
-	} else if req.URL.Query().Get(UserIDParam) != "" {
-		userID = req.URL.Query().Get(UserIDParam)
-		log.Infof("Got query param '%s' with value '%s'", UserIDParam, userID)
-		if strings.Contains(userID, "/") {
-			endInd := strings.Index(userID, "/")
-			userID = userID[:endInd]
-		}
 	}
 	return userID
 }
@@ -386,40 +378,5 @@ func removeUserID(req *http.Request) {
 	// Should be removed once kubernetes-client 4.1.1 is released and che / rh-che will be updated to use this version of kubernetes-client
 	if req.Header.Get(ImpersonateGroupHeader) != "" {
 		req.Header.Del(ImpersonateGroupHeader)
-	}
-	userID := req.URL.Query().Get(UserIDParam)
-	if userID != "" {
-		if strings.Contains(userID, "/") {
-
-			// Processing query params
-			rawQuery := req.URL.RawQuery
-			if strings.Contains(rawQuery, "?") {
-				queryIndex := strings.LastIndex(rawQuery, "?")
-				rawQuery = rawQuery[queryIndex+1:]
-			} else if strings.Contains(rawQuery, "&") {
-				ampersandIndex := strings.Index(rawQuery, "&")
-				rawQuery = rawQuery[ampersandIndex+1:]
-			} else {
-				rawQuery = ""
-			}
-			req.URL.RawQuery = rawQuery
-
-			// Removing query params from userID
-			if strings.Contains(userID, "?") {
-				indexOfQuery := strings.Index(userID, "?")
-				userID = userID[:indexOfQuery]
-			}
-
-			// obtaining path
-			indexOfFirstSlash := strings.Index(userID, "/")
-			path := userID[indexOfFirstSlash:]
-
-			req.URL.Path = path
-			req.RequestURI = req.URL.RequestURI()
-		} else {
-			q := req.URL.Query()
-			q.Del(UserIDParam)
-			req.URL.RawQuery = q.Encode()
-		}
 	}
 }
