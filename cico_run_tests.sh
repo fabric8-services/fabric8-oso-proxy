@@ -7,7 +7,6 @@ PACKAGE_NAME="github.com/containous/traefik"
 
 GOPATH_IN_CONTAINER=/tmp/go
 PACKAGE_PATH=$GOPATH_IN_CONTAINER/src/$PACKAGE_NAME
-ARG USE_GO_VERSION_FROM_WEBSITE=0
 
 docker build -t "$BUILDER" -f Dockerfile.builder .
 
@@ -16,7 +15,6 @@ docker run --detach=true -t \
     -v $(pwd):$PACKAGE_PATH:Z \
     -u $(id -u $USER):$(id -g $USER) \
     -e GOPATH=$GOPATH_IN_CONTAINER \
-    -e USE_GO_VERSION_FROM_WEBSITE=1 \
     -w $PACKAGE_PATH \
     $BUILDER
 
