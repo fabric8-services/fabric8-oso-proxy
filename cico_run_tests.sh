@@ -15,6 +15,7 @@ docker run --detach=true -t \
     -v $(pwd):$PACKAGE_PATH:Z \
     -u $(id -u $USER):$(id -g $USER) \
     -e GOPATH=$GOPATH_IN_CONTAINER \
+    -e USE_GO_VERSION_FROM_WEBSITE=1 \
     -w $PACKAGE_PATH \
     $BUILDER
 
