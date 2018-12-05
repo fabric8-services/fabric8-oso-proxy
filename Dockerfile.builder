@@ -25,9 +25,9 @@ RUN if [[ "$USE_GO_VERSION_FROM_WEBSITE" = 1 ]]; then cd /tmp \
     && tar -C /usr/local -xzf go1.10.4.linux-amd64.tar.gz \
     && rm -f go1.10.4.linux-amd64.tar.gz; \
     fi
-ENV PATH=$PATH:/usr/local/go/bin
 ENV GOPATH=/tmp/go
-RUN mkdir -p ${GOPATH}
+RUN mkdir -p ${GOPATH}/bin
 RUN chmod -R a+rwx ${GOPATH}
+ENV PATH=$PATH:/usr/local/go/bin:${GOPATH}/bin
 
 ENTRYPOINT ["/bin/bash"]
