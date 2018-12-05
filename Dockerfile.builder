@@ -9,6 +9,7 @@ RUN yum install epel-release --enablerepo=extras -y \
     && yum --enablerepo=centosplus --enablerepo=epel-testing install -y \
       findutils \
       git \
+      $(test "$USE_GO_VERSION_FROM_WEBSITE" != 1 && echo "golang") \
       make \
       mercurial \
       procps-ng \
@@ -20,11 +21,12 @@ RUN yum install epel-release --enablerepo=extras -y \
     && rm -rf /var/cache/yum
 
 # Get custom go v
-RUN cd /tmp \
+RUN if [[ "$USE_GO_VERSION_FROM_WEBSITE" = 1 ]]; then cd /tmp \
     && wget https://storage.googleapis.com/golang/go1.10.4.linux-amd64.tar.gz  \
     && echo "fa04efdb17a275a0c6e137f969a1c4eb878939e91e1da16060ce42f02c2ec5ec go1.10.4.linux-amd64.tar.gz" > checksum \
     && sha256sum -c checksum \
     && tar xvzf go*.tar.gz \
-    && mv go $GOROOT
+    && mv go $GOROOT; \
+    fi
 
 ENTRYPOINT ["/bin/bash"]
