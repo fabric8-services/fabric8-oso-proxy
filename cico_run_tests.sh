@@ -22,9 +22,9 @@ docker exec -t "$BUILDER-run" bash -ec 'go get github.com/jteeuwen/go-bindata/..
 docker exec -t "$BUILDER-run" bash -ec 'go generate'
 docker exec -t "$BUILDER-run" bash -ec 'go build -o dist/traefik ./cmd/traefik'
 
-docker exec -t "$BUILDER-run" bash -ec 'go test -v ./middlewares/osio/ -coverprofile coverage.middlewares -covermode=set -coverpkg github.com/containous/traefik/middlewares/osio,github.com/containous/traefik/provider/osio -timeout 5m'
-docker exec -t "$BUILDER-run" bash -ec 'go test -v ./provider/osio/ -coverprofile coverage.provider -covermode=set -coverpkg github.com/containous/traefik/middlewares/osio,github.com/containous/traefik/provider/osio -timeout 5m'
-docker exec -t "$BUILDER-run" bash -ec 'go test -v ./integration/ -integration -osio'
+docker exec -t "$BUILDER-run" bash -ec 'go test -v -vet off ./middlewares/osio/ -coverprofile coverage.middlewares -covermode=set -coverpkg github.com/containous/traefik/middlewares/osio,github.com/containous/traefik/provider/osio -timeout 5m'
+docker exec -t "$BUILDER-run" bash -ec 'go test -v -vet off ./provider/osio/ -coverprofile coverage.provider -covermode=set -coverpkg github.com/containous/traefik/middlewares/osio,github.com/containous/traefik/provider/osio -timeout 5m'
+docker exec -t "$BUILDER-run" bash -ec 'go test -v -vet off ./integration/ -integration -osio'
 
 # Upload coverage to codecov.io
 # -t <upload_token> copy from https://codecov.io/gh/fabric8-services/fabric8-oso-proxy/settings
