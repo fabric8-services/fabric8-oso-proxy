@@ -12,15 +12,15 @@ This give details on https://github.com/fabric8-services/fabric8-oso-proxy/[fabr
 
 == Overview
 
-OSO Proxy project is proxy between OSIO (OpenShift.io) and OSO (OpenShift Online server / OpneShift server).  It takes care of replacing OSIO Token (user token) with OSO Token.  Ideally, all calls from OSIO to OSO should go through oso-proxy but currently there are some exception due to some well known reason.
+OSO Proxy project is proxy between OSIO (OpenShift.io) and OSO (OpenShift Online server / OpenShift server).  It takes care of replacing OSIO Token (user token) with OSO Token.  Ideally, all calls from OSIO to OSO should go through oso-proxy but currently there are some exception due to some well known reason.
 
-OSO Proxy is forked from Traefik project.  Ideally, oso-proxy should have used Traefik as dependency and should not forked from Traefik but currently Traefik does not provide mechanism to plugin 3rd party extensions, so, oso-proxy is forked from Traefik and OSIO extensions were added directly into Traefik codebase.
+OSO Proxy is forked from Traefik project.  Ideally, oso-proxy should have used Traefik as dependency and should not have been forked from Traefik but currently Traefik does not provide mechanism to plugin 3rd party extensions, so oso-proxy is forked from Traefik and OSIO extensions were added directly into Traefik codebase.
 
 == OSO Proxy code
 
 This section list down all the code that is added in Traefik for OSO Proxy.
 
-- osio traefik provider pakcage - https://github.com/fabric8-services/fabric8-oso-proxy/tree/master/provider/osio[provider/osio]
+- osio traefik provider package - https://github.com/fabric8-services/fabric8-oso-proxy/tree/master/provider/osio[provider/osio]
 - osio traefik middleware package - https://github.com/fabric8-services/fabric8-oso-proxy/tree/master/middlewares/osio[middlewares/osio]
 - integation test package and files -
  https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/integration/osio_middleware_test.go[osio_middleware_test.go],
@@ -51,7 +51,7 @@ There are mainly two components added in traefik for OSIO in OSO Proxy project.
 
 Traefik docs link: https://docs.traefik.io/basics/#frontends[frontends], https://docs.traefik.io/basics/#backends[backends]
 
-Traefik configuratin has two main elements called "frontends and backends" which provides details on routing/redirecting to traefik.  These configuations can be provided in multiple way to traefik.  For OSIO, we have implmentation "OSIO Traefik Provider" to provide these configuration details to traefik.
+Traefik configuration has two main elements called "frontends and backends" which provides details on routing/redirecting to traefik.  These configurations can be provided in multiple ways to traefik.  For OSIO, we have implmentation "OSIO Traefik Provider" to provide these configuration details to traefik.
 
 OSIO provider https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/provider/osio/osio.go[code_link] implements Provider inerface from Traefik https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/provider/provider.go[code_link] and registered at https://github.com/fabric8-services/fabric8-oso-proxy/blob/master/configuration/configuration.go[code_link].
 
