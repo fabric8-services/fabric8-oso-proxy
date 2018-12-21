@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	Authorization = "Authorization"
+	Authorization          = "Authorization"
 	ImpersonateGroupHeader = "Impersonate-Group"
-	UserIDHeader  = "Impersonate-User"
+	UserIDHeader           = "Impersonate-User"
 )
 
 type RequestType string
@@ -313,10 +313,6 @@ func (r RequestType) getRedirectURL(targetURL string, req *http.Request) string 
 }
 
 func getToken(r *http.Request) (string, error) {
-	if at := r.URL.Query().Get("access_token"); at != "" {
-		r.URL.Query().Del("access_token")
-		return at, nil
-	}
 	t, err := extractToken(r.Header.Get(Authorization))
 	if err != nil {
 		return "", err

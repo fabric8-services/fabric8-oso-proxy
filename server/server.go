@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-proxyproto"
+	proxyproto "github.com/armon/go-proxyproto"
 	"github.com/containous/mux"
 	"github.com/containous/traefik/cluster"
 	"github.com/containous/traefik/configuration"
@@ -75,6 +75,7 @@ type Server struct {
 	leadership                    *cluster.Leadership
 	defaultForwardingRoundTripper http.RoundTripper
 	metricsRegistry               metrics.Registry
+	osioReqMiddleware             *osio.OSIORequest
 	osioMiddleware                *osio.OSIOAuth
 	provider                      provider.Provider
 	configurationListeners        []func(types.Configuration)
@@ -138,6 +139,9 @@ func NewServer(globalConfiguration configuration.GlobalConfiguration, provider p
 			log.Warnf("Unable to create log handler: %s", err)
 		}
 	}
+
+	log.Info("Initialize OSIO Request middleware")
+	server.osioReqMiddleware = osio.NewOSIORequest()
 
 	// TODO: Expose via config?
 	log.Info("Initialize OSIO Auth middleware")
@@ -312,6 +316,10 @@ func (s *Server) startHTTPServers() {
 func (s *Server) setupServerEntryPoint(newServerEntryPointName string, newServerEntryPoint *serverEntryPoint) *serverEntryPoint {
 	serverMiddlewares := []negroni.Handler{middlewares.NegroniRecoverHandler()}
 	serverInternalMiddlewares := []negroni.Handler{middlewares.NegroniRecoverHandler()}
+
+	if s.osioReqMiddleware != nil {
+		serverMiddlewares = append(serverMiddlewares, s.osioReqMiddleware)
+	}
 
 	if s.tracingMiddleware.IsEnabled() {
 		serverMiddlewares = append(serverMiddlewares, s.tracingMiddleware.NewEntryPoint(newServerEntryPointName))

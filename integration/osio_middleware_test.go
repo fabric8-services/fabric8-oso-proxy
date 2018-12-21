@@ -88,6 +88,14 @@ func (s *OSIOMiddlewareSuite) TestOSIO(c *check.C) {
 	log.Printf("Test default server found for OPTIONS request, res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 200)
 	checkPort(c, res, 8081)
+
+	url := fmt.Sprintf("http://127.0.0.1:8000/test?access_token=%s", common.TestTokenManager.ToTokenString(jwt.MapClaims{"sub": "1111"}))
+	req, _ = http.NewRequest("GET", url, nil)
+	res, err = try.Response(req, 500*time.Millisecond)
+	c.Assert(err, check.IsNil)
+	log.Printf("Test server found, res.StatusCode=%d", res.StatusCode)
+	c.Assert(res.StatusCode, check.Equals, 200)
+	checkPort(c, res, 8081)
 }
 
 func checkPort(c *check.C, res *http.Response, expectedPort int) {
