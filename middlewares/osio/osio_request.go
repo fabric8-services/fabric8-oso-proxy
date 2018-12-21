@@ -3,7 +3,6 @@ package osio
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 )
 
 type OSIORequest struct {
@@ -25,7 +24,7 @@ func processAuthParam(r *http.Request) {
 	accessToken := r.URL.Query().Get("access_token")
 	if accessToken != "" {
 		addAuthHeader(r, accessToken)
-		removeAuthParam(r.URL)
+		removeAuthParam(r)
 	}
 }
 
@@ -33,8 +32,9 @@ func addAuthHeader(r *http.Request, accessToken string) {
 	r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 }
 
-func removeAuthParam(url *url.URL) {
-	q := url.Query()
+func removeAuthParam(r *http.Request) {
+	q := r.URL.Query()
 	q.Del("access_token")
-	url.RawQuery = q.Encode()
+	r.URL.RawQuery = q.Encode()
+	r.RequestURI = r.URL.RequestURI()
 }
