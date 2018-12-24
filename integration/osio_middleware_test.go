@@ -1,7 +1,9 @@
 package integration
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -42,6 +44,7 @@ func (s *OSIOMiddlewareSuite) TestOSIO(c *check.C) {
 	err := cmd.Start()
 	c.Assert(err, checker.IsNil)
 	defer cmd.Process.Kill()
+	defer checkTraefikLogs(c, cmd.Stdout)
 
 	// Make some requests
 	req, _ := http.NewRequest("GET", "http://127.0.0.1:8000/test", nil)
@@ -88,6 +91,14 @@ func (s *OSIOMiddlewareSuite) TestOSIO(c *check.C) {
 	log.Printf("Test default server found for OPTIONS request, res.StatusCode=%d", res.StatusCode)
 	c.Assert(res.StatusCode, check.Equals, 200)
 	checkPort(c, res, 8081)
+
+	url := fmt.Sprintf("http://127.0.0.1:8000/test?access_token=%s", common.TestTokenManager.ToTokenString(jwt.MapClaims{"sub": "1111"}))
+	req, _ = http.NewRequest("GET", url, nil)
+	res, err = try.Response(req, 500*time.Millisecond)
+	c.Assert(err, check.IsNil)
+	log.Printf("Test server found, res.StatusCode=%d", res.StatusCode)
+	c.Assert(res.StatusCode, check.Equals, 200)
+	checkPort(c, res, 8081)
 }
 
 func checkPort(c *check.C, res *http.Response, expectedPort int) {
@@ -101,4 +112,13 @@ func checkPort(c *check.C, res *http.Response, expectedPort int) {
 
 func serverMiddlewareCluster() string {
 	return common.TwoClusterData()
+}
+
+func checkTraefikLogs(c *check.C, w io.Writer) {
+	if logBytes, ok := w.(*bytes.Buffer); ok {
+		logStr := logBytes.String()
+		if strings.Contains(logStr, "access_token") {
+			c.Errorf("'access_token' found in logs")
+		}
+	}
 }
