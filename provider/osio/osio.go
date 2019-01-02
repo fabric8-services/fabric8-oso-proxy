@@ -24,15 +24,24 @@ const (
 type Provider struct {
 	provider.BaseProvider `mapstructure:",squash" export:"true"`
 
-	RefreshSeconds       int    `description:"Polling interval (in seconds)" export:"true"`
-	ServiceAccountID     string `description:"Service Account ID" export:"true"`
-	ServiceAccountSecret string `description:"Service Account Secret" export:"true"`
-	TokenURL             string `description:"Auth Token URL" export:"true"`
-	ClustersURL          string `description:"Clusters details URL" export:"true"`
+	RefreshSeconds int    `description:"Polling interval (in seconds)" export:"false"`
+	TokenURL       string `description:"Auth Token URL" export:"true"`
+	ClustersURL    string `description:"Clusters details URL" export:"true"`
+
+	serviceAccountID     string
+	serviceAccountSecret string
 
 	client            Client
 	tokenResp         *TokenResponse
 	defaultBackendURL string
+}
+
+func (p *Provider) ServiceAccountID(saID string) {
+	p.serviceAccountID = saID
+}
+
+func (p *Provider) ServiceAccountSecret(saSecret string) {
+	p.serviceAccountSecret = saSecret
 }
 
 // Provide allows the osio provider to provide configurations to traefik
@@ -120,7 +129,7 @@ func (p *Provider) fetchToken() error {
 	if p.tokenResp != nil {
 		return nil
 	}
-	tokenReq := &TokenRequest{GrantType: "client_credentials", ClientID: p.ServiceAccountID, ClientSecret: p.ServiceAccountSecret}
+	tokenReq := &TokenRequest{GrantType: "client_credentials", ClientID: p.serviceAccountID, ClientSecret: p.serviceAccountSecret}
 	tokenResp, err := p.client.GetToken(p.TokenURL, tokenReq)
 	if err != nil {
 		return err
