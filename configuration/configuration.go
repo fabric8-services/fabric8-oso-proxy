@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/containous/flaeg"
-	"github.com/containous/traefik-extra-service-fabric"
+	servicefabric "github.com/containous/traefik-extra-service-fabric"
 	"github.com/containous/traefik/acme"
 	"github.com/containous/traefik/api"
 	"github.com/containous/traefik/log"
@@ -398,17 +398,18 @@ func (gc *GlobalConfiguration) initACMEProvider() {
 	}
 
 	if gc.OSIO != nil {
+		log.Info("Initialize OSIO Provider")
 		saID := os.Getenv("SERVICE_ACCOUNT_ID")
 		if len(saID) <= 0 {
 			panic("Missing SERVICE_ACCOUNT_ID")
 		}
-		gc.OSIO.ServiceAccountID = saID
+		gc.OSIO.ServiceAccountID(saID)
 
 		saSecret := os.Getenv("SERVICE_ACCOUNT_SECRET")
 		if len(saSecret) <= 0 {
 			panic("Missing SERVICE_ACCOUNT_SECRET")
 		}
-		gc.OSIO.ServiceAccountSecret = saSecret
+		gc.OSIO.ServiceAccountSecret(saSecret)
 
 		authURL := os.Getenv("AUTH_URL")
 		if len(authURL) <= 0 {
