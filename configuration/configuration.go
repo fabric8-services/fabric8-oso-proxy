@@ -398,6 +398,7 @@ func (gc *GlobalConfiguration) initACMEProvider() {
 	}
 
 	if gc.OSIO != nil {
+		log.Info("Initialize OSIO Provider")
 		saID := os.Getenv("SERVICE_ACCOUNT_ID")
 		if len(saID) <= 0 {
 			panic("Missing SERVICE_ACCOUNT_ID")
