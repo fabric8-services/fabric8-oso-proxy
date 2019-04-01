@@ -29,12 +29,12 @@ type testCheData struct {
 /*
 Test case details
 
-call				user								userId			namesapce						cluster					details
-------------------------------------------------------------------------------------------------------------------------------------
-call-1,2		john-preview				11111111		john-preview-che		cluster1.com		std usecase, user & ns for user 11111111 on cluster1
-call-3,4		osio-test-preview		22222222		k8s-image-puller		cluster1.com		daemonset usecase with user 22222222 on cluster1
-call-5			osio-test2-preview	33333333		k8s-image-puller		cluster2.com		daemonset usecase with user 33333333 on cluster2
-call-6			osio-test-preview		22222222		osio-test-preview		cluster1.com		std usecase, user & ns for user 22222222 on cluster1
+call      user                userId    namesapce          cluster       details
+-----------------------------------------------------------------------------------------------------------------------------
+call-1,2  john-preview        11111111  john-preview-che   cluster1.com  std usecase, user & ns for user 11111111 on cluster1
+call-3,4  osio-test-preview   22222222  k8s-image-puller   cluster1.com  daemonset usecase with user 22222222 on cluster1
+call-5    osio-test2-preview  33333333  k8s-image-puller   cluster2.com  daemonset usecase with user 33333333 on cluster2
+call-6    osio-test-preview   22222222  osio-test-preview  cluster1.com  std usecase, user & ns for user 22222222 on cluster1
 
 - between call3 and call5, daemonset usecase with same namespace but different user on different cluster
 - between call3 and call6, same user but call3 is damenset usecase while call6 is std usecase
