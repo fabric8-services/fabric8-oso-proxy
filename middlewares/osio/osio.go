@@ -171,7 +171,7 @@ func (a *OSIOAuth) resolveByToken(token string, tokenType TokenType) (cacheData,
 }
 
 func (a *OSIOAuth) resolveByID(userID, token string, tokenType TokenType, namespaceName string) (cacheData, error) {
-	plainKey := fmt.Sprintf("%s_%s", token, userID)
+	plainKey := fmt.Sprintf("%s_%s_%s", token, userID, namespaceName)
 	key := cacheKey(plainKey)
 	val, err := a.cache.Get(key, cacheResolverByID(a.RequestTenantLocation, a.RequestTenantToken, a.RequestSrvAccToken, a.RequestSecretLocation, token, tokenType, userID, namespaceName)).Get()
 
@@ -211,6 +211,11 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				}
 				namespaceName := getNamespaceName(r.URL.Path)
 				log.Infof("namespaceName=%s", namespaceName)
+				if namespaceName == "" {
+					log.Errorf("Invalid path, namespace name is missing in request path")
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
 				cached, err = a.resolveByID(userID, token, tokenType, namespaceName)
 			} else {
 				cached, err = a.resolveByToken(token, tokenType)

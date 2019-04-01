@@ -43,13 +43,27 @@ var cheCtx = testCheCtx{tables: []testCheData{
 		"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets",
 		"22222222-1874-4de5-9c62-602634cb5cc2",
 		"127.0.0.1:9091",
-		"1000_che_secret",
+		"2000_che_secret",
 	},
 	{
 		"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets", // same test data to check cache
 		"22222222-1874-4de5-9c62-602634cb5cc2",
 		"127.0.0.1:9091",
-		"1000_che_secret",
+		"2000_che_secret",
+	},
+	{
+		// same ns=k8s-image-puller but different user=33333333-*
+		"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets",
+		"33333333-1874-4de5-9c62-602634cb5cc2",
+		"127.0.0.1:9092",
+		"3000_che_secret",
+	},
+	{
+		// user=22222222-* wants to access its own ns=osio-test-preview-che resuorces
+		"/apis/apps/v1/namespaces/osio-test-preview-che/pods",
+		"22222222-1874-4de5-9c62-602634cb5cc2",
+		"127.0.0.1:9091",
+		"4000_che_secret",
 	},
 }}
 
@@ -90,7 +104,7 @@ func TestChe(t *testing.T) {
 
 		cluster.Close()
 	}
-	expecteTenantCalls := 2
+	expecteTenantCalls := 4
 	assert.Equal(t, expecteTenantCalls, cheCtx.tenantCallCount, "Number of time Tenant server called was incorrect, want:%d, got:%d", expecteTenantCalls, cheCtx.tenantCallCount)
 }
 
@@ -275,6 +289,83 @@ func (t testCheCtx) serveTenantRequest(rw http.ResponseWriter, req *http.Request
 				"type": "userservices"
 			}
 		}`
+	} else if strings.HasSuffix(req.URL.Path, "/tenants/33333333-1874-4de5-9c62-602634cb5cc2") {
+		res = `{
+			"data": {
+				"attributes": {
+					"created-at": "2018-03-21T11:28:22.042269Z",
+					"namespaces": [
+						{
+							"cluster-app-domain": "b542.starter-us-east-2a.openshiftapps.com",
+							"cluster-console-url": "https://console.starter-us-east-2a.openshift.com/console/",
+							"cluster-logging-url": "https://console.starter-us-east-2a.openshift.com/console/",
+							"cluster-metrics-url": "https://metrics.starter-us-east-2a.openshift.com/",
+							"cluster-url": "http://127.0.0.1:9092/",
+							"created-at": "2018-03-21T11:28:22.299195Z",
+							"name": "osio-test2-preview-stage",
+							"state": "created",
+							"type": "stage",
+							"updated-at": "2018-03-21T11:28:22.299195Z",
+							"version": "2.0.11"
+						},
+						{
+							"cluster-app-domain": "b542.starter-us-east-2a.openshiftapps.com",
+							"cluster-console-url": "https://console.starter-us-east-2a.openshift.com/console/",
+							"cluster-logging-url": "https://console.starter-us-east-2a.openshift.com/console/",
+							"cluster-metrics-url": "https://metrics.starter-us-east-2a.openshift.com/",
+							"cluster-url": "http://127.0.0.1:9092/",
+							"created-at": "2018-03-21T11:28:22.372172Z",
+							"name": "osio-test2-preview-run",
+							"state": "created",
+							"type": "run",
+							"updated-at": "2018-03-21T11:28:22.372172Z",
+							"version": "2.0.11"
+						},
+						{
+							"cluster-app-domain": "b542.starter-us-east-2a.openshiftapps.com",
+							"cluster-console-url": "https://console.starter-us-east-2a.openshift.com/console/",
+							"cluster-logging-url": "https://console.starter-us-east-2a.openshift.com/console/",
+							"cluster-metrics-url": "https://metrics.starter-us-east-2a.openshift.com/",
+							"cluster-url": "http://127.0.0.1:9092/",
+							"created-at": "2018-03-21T11:28:22.401522Z",
+							"name": "osio-test2-preview-jenkins",
+							"state": "created",
+							"type": "jenkins",
+							"updated-at": "2018-03-21T11:28:22.401522Z",
+							"version": "2.0.11"
+						},
+						{
+							"cluster-app-domain": "b542.starter-us-east-2a.openshiftapps.com",
+							"cluster-console-url": "https://console.starter-us-east-2a.openshift.com/console/",
+							"cluster-logging-url": "https://console.starter-us-east-2a.openshift.com/console/",
+							"cluster-metrics-url": "https://metrics.starter-us-east-2a.openshift.com/",
+							"cluster-url": "http://127.0.0.1:9092/",
+							"created-at": "2018-03-21T11:28:22.413148Z",
+							"name": "osio-test2-preview-che",
+							"state": "created",
+							"type": "che",
+							"updated-at": "2018-03-21T11:28:22.413148Z",
+							"version": "2.0.11"
+						},
+						{
+							"cluster-app-domain": "b542.starter-us-east-2a.openshiftapps.com",
+							"cluster-console-url": "https://console.starter-us-east-2a.openshift.com/console/",
+							"cluster-logging-url": "https://console.starter-us-east-2a.openshift.com/console/",
+							"cluster-metrics-url": "https://metrics.starter-us-east-2a.openshift.com/",
+							"cluster-url": "http://127.0.0.1:9092/",
+							"created-at": "2018-03-21T11:28:22.421707Z",
+							"name": "osio-test2-preview",
+							"state": "created",
+							"type": "user",
+							"updated-at": "2018-03-21T11:28:22.421707Z",
+							"version": "1.0.91"
+						}
+					]
+				},
+				"id": "33333333-1874-4de5-9c62-602634cb5cc2",
+				"type": "userservices"
+			}
+		}`
 	} else {
 		rw.WriteHeader(http.StatusBadRequest)
 		return
@@ -284,8 +375,12 @@ func (t testCheCtx) serveTenantRequest(rw http.ResponseWriter, req *http.Request
 
 func (t testCheCtx) serveClusterRequest(rw http.ResponseWriter, req *http.Request) {
 	res := ""
-	if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/john-preview-che/serviceaccounts/che") {
-		res = `{
+	host := req.Host
+
+	if strings.Contains(host, "127.0.0.1:9091") {
+
+		if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/john-preview-che/serviceaccounts/che") {
+			res = `{
 			"kind": "ServiceAccount",
 			"apiVersion": "v1",
 			"metadata": {
@@ -317,8 +412,8 @@ func (t testCheCtx) serveClusterRequest(rw http.ResponseWriter, req *http.Reques
 			]
 		  }
 		  `
-	} else if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/k8s-image-puller/serviceaccounts/che") {
-		res = `{
+		} else if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/k8s-image-puller/serviceaccounts/che") {
+			res = `{
 			"kind": "ServiceAccount",
 			"apiVersion": "v1",
 			"metadata": {
@@ -350,8 +445,41 @@ func (t testCheCtx) serveClusterRequest(rw http.ResponseWriter, req *http.Reques
 			]
 		  }
 		  `
-	} else if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/john-preview-che/secrets/che-token-x6x6x") {
-		res = `{
+		} else if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/osio-test-preview-che/serviceaccounts/che") {
+			res = `{
+			"kind": "ServiceAccount",
+			"apiVersion": "v1",
+			"metadata": {
+			  "name": "che",
+			  "namespace": "osio-test-preview-che",
+			  "selfLink": "/api/v1/namespaces/osio-test-preview-che/serviceaccounts/che",
+			  "uid": "f9dfcc84-2cfa-11e8-a71f-024db754f2d2",
+			  "resourceVersion": "117908057",
+			  "creationTimestamp": "2018-03-21T11:28:28Z",
+			  "labels": {
+				"app": "fabric8-tenant-che-mt",
+				"group": "io.fabric8.tenant.packages",
+				"provider": "fabric8",
+				"version": "2.0.82"
+			  }
+			},
+			"secrets": [
+			  {
+				"name": "che-dockercfg-x8xx7"
+			  },
+			  {
+				"name": "che-token-x4x4x"
+			  }
+			],
+			"imagePullSecrets": [
+			  {
+				"name": "che-dockercfg-x8xx7"
+			  }
+			]
+		  }
+		  `
+		} else if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/john-preview-che/secrets/che-token-x6x6x") {
+			res = `{
 			"kind": "Secret",
 			"apiVersion": "v1",
 			"metadata": {
@@ -374,8 +502,8 @@ func (t testCheCtx) serveClusterRequest(rw http.ResponseWriter, req *http.Reques
 			},
 			"type": "kubernetes.io/service-account-token"
 		  }`
-	} else if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/k8s-image-puller/secrets/che-token-x2x2x") {
-		res = `{
+		} else if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/k8s-image-puller/secrets/che-token-x2x2x") {
+			res = `{
 			"kind": "Secret",
 			"apiVersion": "v1",
 			"metadata": {
@@ -394,11 +522,99 @@ func (t testCheCtx) serveClusterRequest(rw http.ResponseWriter, req *http.Reques
 			  "ca.crt": "xxxxx=",
 			  "namespace": "xxxxx==",
 			  "service-ca.crt": "xxxxx=",
-			  "token": "MTAwMF9jaGVfc2VjcmV0"
+			  "token": "MjAwMF9jaGVfc2VjcmV0"
 			},
 			"type": "kubernetes.io/service-account-token"
 		  }`
-	} else {
+		} else if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/osio-test-preview-che/secrets/che-token-x4x4x") {
+			res = `{
+			"kind": "Secret",
+			"apiVersion": "v1",
+			"metadata": {
+			  "name": "che-token-x4x4x",
+			  "namespace": "osio-test-preview-che",
+			  "selfLink": "/api/v1/namespaces/osio-test-preview-che/secrets/che-token-x4x4x",
+			  "uid": "f9e3f05e-a71f-024db754f2d2",
+			  "resourceVersion": "117908051",
+			  "creationTimestamp": "2018-03-21T11:28:28Z",
+			  "annotations": {
+				"kubernetes.io/service-account.name": "che",
+				"kubernetes.io/service-account.uid": "f9dfcc84-xxx-024db754f2d2"
+			  }
+			},
+			"data": {
+			  "ca.crt": "xxxxx=",
+			  "namespace": "xxxxx==",
+			  "service-ca.crt": "xxxxx=",
+			  "token": "NDAwMF9jaGVfc2VjcmV0"
+			},
+			"type": "kubernetes.io/service-account-token"
+		  }`
+		}
+
+	} else if strings.Contains(host, "127.0.0.1:9092") {
+
+		if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/k8s-image-puller/serviceaccounts/che") {
+			res = `{
+			"kind": "ServiceAccount",
+			"apiVersion": "v1",
+			"metadata": {
+			  "name": "che",
+			  "namespace": "k8s-image-puller",
+			  "selfLink": "/api/v1/namespaces/k8s-image-puller/serviceaccounts/che",
+			  "uid": "f9dfcc84-2cfa-11e8-a71f-024db754f2d2",
+			  "resourceVersion": "117908057",
+			  "creationTimestamp": "2018-03-21T11:28:28Z",
+			  "labels": {
+				"app": "fabric8-tenant-che-mt",
+				"group": "io.fabric8.tenant.packages",
+				"provider": "fabric8",
+				"version": "2.0.82"
+			  }
+			},
+			"secrets": [
+			  {
+				"name": "che-dockercfg-x8xx7"
+			  },
+			  {
+				"name": "che-token-x3x3x"
+			  }
+			],
+			"imagePullSecrets": [
+			  {
+				"name": "che-dockercfg-x8xx7"
+			  }
+			]
+		  }
+		  `
+		} else if strings.HasSuffix(req.URL.Path, "api/v1/namespaces/k8s-image-puller/secrets/che-token-x3x3x") {
+			res = `{
+			"kind": "Secret",
+			"apiVersion": "v1",
+			"metadata": {
+			  "name": "che-token-x3x3x",
+			  "namespace": "k8s-image-puller",
+			  "selfLink": "/api/v1/namespaces/k8s-image-puller/secrets/che-token-x3x3x",
+			  "uid": "f9e3f05e-a71f-024db754f2d2",
+			  "resourceVersion": "117908051",
+			  "creationTimestamp": "2018-03-21T11:28:28Z",
+			  "annotations": {
+				"kubernetes.io/service-account.name": "che",
+				"kubernetes.io/service-account.uid": "f9dfcc84-xxx-024db754f2d2"
+			  }
+			},
+			"data": {
+			  "ca.crt": "xxxxx=",
+			  "namespace": "xxxxx==",
+			  "service-ca.crt": "xxxxx=",
+			  "token": "MzAwMF9jaGVfc2VjcmV0"
+			},
+			"type": "kubernetes.io/service-account-token"
+		  }`
+		}
+	}
+
+	if len(res) == 0 {
 		rw.WriteHeader(http.StatusBadRequest)
 		return
 	}
