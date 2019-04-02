@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/containous/traefik/log"
 )
 
 type secretNameResponse struct {
@@ -37,6 +39,7 @@ func (s *secretLocator) GetName(clusterURL, clusterToken, nsName, nsType string)
 	// https://api.starter-us-east-2a.openshift.com/api/v1/namespaces/john-preview-che/serviceaccounts/che
 	clusterURL = normalizeURL(clusterURL)
 	url := fmt.Sprintf("%s/api/v1/namespaces/%s/serviceaccounts/%s", clusterURL, nsName, nsType)
+	log.Infof("GetName, url=%s", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
@@ -60,6 +63,7 @@ func (s *secretLocator) GetSecret(clusterURL, clusterToken, nsName, secretName s
 	// https://api.starter-us-east-2a.openshift.com/api/v1/namespaces/john-preview-che/secrets/che-token-xxxx
 	clusterURL = normalizeURL(clusterURL)
 	url := fmt.Sprintf("%s/api/v1/namespaces/%s/secrets/%s", clusterURL, nsName, secretName)
+	log.Infof("GetSecret, url=%s", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
