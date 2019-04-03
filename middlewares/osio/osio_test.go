@@ -78,7 +78,6 @@ func TestStripPathPrefix(t *testing.T) {
 		{"/logs/anything", "/anything"},
 		{"/anything", "/anything"},
 		{"/", "/"},
-		{"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets", "/apis/apps/v1/namespaces/k8s-image-puller/daemonsets"},
 	}
 
 	for _, table := range tables {

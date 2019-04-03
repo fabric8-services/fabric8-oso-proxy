@@ -9,9 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"time"
 
-	"github.com/containous/traefik/log"
 	jwt "github.com/dgrijalva/jwt-go"
 	jose "gopkg.in/square/go-jose.v1"
 )
@@ -41,31 +39,6 @@ func StartServer(port int, handler func(w http.ResponseWriter, r *http.Request))
 		ts.Start()
 	}
 	return
-}
-
-// WaitTillReady calls url every seconds for 10 times.
-func WaitTillReady(url string) error {
-	pingReq, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return err
-	}
-	for i := 0; i < 10; i++ {
-		log.Printf("/ping request %d", (i + 1))
-		resp, err := http.DefaultClient.Do(pingReq)
-		if err == nil {
-			if resp != nil {
-				if resp.StatusCode == http.StatusOK {
-					if resp.Body != nil {
-						ioutil.ReadAll(resp.Body)
-						resp.Body.Close()
-					}
-					return nil
-				}
-			}
-		}
-		time.Sleep(1 * time.Second)
-	}
-	return fmt.Errorf("url `%s` is not ready after 10 seconds", url)
 }
 
 func ServeTenantRequest(rw http.ResponseWriter, req *http.Request) {

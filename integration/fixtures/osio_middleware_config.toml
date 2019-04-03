@@ -17,9 +17,6 @@ format = "json"
     [accessLog.fields.headers.names]
     "Authorization" = "redact"
 
-[ping]
-entrypoint = "http"
-
 [api]
 entryPoint = "traefik"
 

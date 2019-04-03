@@ -77,13 +77,6 @@ var mwCtx = testMiddlewareCtx{tables: []testMiddlewareData{
 		"/oapi/anything",
 	},
 	{
-		"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets",
-		"Bearer 1000",
-		"http://api.cluster1.com",
-		"Bearer 1001",
-		"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets",
-	},
-	{
 		"/metrics",
 		"Bearer 1000",
 		"http://metrics.cluster1.com",
