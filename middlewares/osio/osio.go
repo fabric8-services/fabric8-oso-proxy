@@ -251,7 +251,8 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 func getRequestType(req *http.Request) RequestType {
 	reqPath := req.URL.Path
 	switch {
-	case strings.HasPrefix(reqPath, api.path()):
+	// extra '/' (slash at end) to make sure other prefix like '/apis' should not match with this case
+	case strings.HasPrefix(reqPath, api.path()+"/"):
 		return api
 	case strings.HasPrefix(reqPath, metrics.path()):
 		return metrics
