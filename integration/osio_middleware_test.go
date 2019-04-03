@@ -46,6 +46,10 @@ func (s *OSIOMiddlewareSuite) TestOSIO(c *check.C) {
 	defer cmd.Process.Kill()
 	defer checkTraefikLogs(c, cmd.Stdout)
 
+	// Wait for Traefik to start
+	err = common.WaitTillReady("http://localhost:8000/ping")
+	c.Assert(err, check.IsNil)
+
 	// Make some requests
 	req, _ := http.NewRequest("GET", "http://127.0.0.1:8000/test", nil)
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", common.TestTokenManager.ToTokenString(jwt.MapClaims{"sub": "1111"})))
