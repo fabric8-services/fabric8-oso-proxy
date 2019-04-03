@@ -113,7 +113,7 @@ func NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret string) *OSIOAuth {
 	}
 }
 
-func cacheResolverByID(tenantLocator TenantLocator, tokenLocator TenantTokenLocator, srvAccTokenLocator SrvAccTokenLocator, secretLocator SecretLocator, token string, tokenType TokenType, userID string, namespaceName string) Resolver {
+func cacheResolverByID(tenantLocator TenantLocator, tokenLocator TenantTokenLocator, srvAccTokenLocator SrvAccTokenLocator, secretLocator SecretLocator, token string, tokenType TokenType, userID string) Resolver {
 	return func() (interface{}, error) {
 		namespace, err := tenantLocator.GetTenantById(token, tokenType, userID)
 		if err != nil {
@@ -130,12 +130,12 @@ func cacheResolverByID(tenantLocator TenantLocator, tokenLocator TenantTokenLoca
 			log.Errorf("Failed to locate cluster token, %v", err)
 			return cacheData{}, err
 		}
-		secretName, err := secretLocator.GetName(namespace.ClusterURL, clusterToken, namespaceName, namespace.Type)
+		secretName, err := secretLocator.GetName(namespace.ClusterURL, clusterToken, namespace.Name, namespace.Type)
 		if err != nil {
 			log.Errorf("Failed to locate secret name, %v", err)
 			return cacheData{}, err
 		}
-		osoToken, err := secretLocator.GetSecret(namespace.ClusterURL, clusterToken, namespaceName, secretName)
+		osoToken, err := secretLocator.GetSecret(namespace.ClusterURL, clusterToken, namespace.Name, secretName)
 		if err != nil {
 			log.Errorf("Failed to get secret, %v", err)
 			return cacheData{}, err
@@ -170,10 +170,10 @@ func (a *OSIOAuth) resolveByToken(token string, tokenType TokenType) (cacheData,
 	return cacheData{}, err
 }
 
-func (a *OSIOAuth) resolveByID(userID, token string, tokenType TokenType, namespaceName string) (cacheData, error) {
-	plainKey := fmt.Sprintf("%s_%s_%s", token, userID, namespaceName)
+func (a *OSIOAuth) resolveByID(userID, token string, tokenType TokenType) (cacheData, error) {
+	plainKey := fmt.Sprintf("%s_%s", token, userID)
 	key := cacheKey(plainKey)
-	val, err := a.cache.Get(key, cacheResolverByID(a.RequestTenantLocation, a.RequestTenantToken, a.RequestSrvAccToken, a.RequestSecretLocation, token, tokenType, userID, namespaceName)).Get()
+	val, err := a.cache.Get(key, cacheResolverByID(a.RequestTenantLocation, a.RequestTenantToken, a.RequestSrvAccToken, a.RequestSecretLocation, token, tokenType, userID)).Get()
 
 	if data, ok := val.(cacheData); ok {
 		return data, err
@@ -209,14 +209,7 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 					rw.WriteHeader(http.StatusUnauthorized)
 					return
 				}
-				namespaceName := getNamespaceName(r.URL.Path)
-				log.Infof("namespaceName=%s", namespaceName)
-				if namespaceName == "" {
-					log.Errorf("Invalid path, namespace name is missing in request path")
-					rw.WriteHeader(http.StatusBadRequest)
-					return
-				}
-				cached, err = a.resolveByID(userID, token, tokenType, namespaceName)
+				cached, err = a.resolveByID(userID, token, tokenType)
 			} else {
 				cached, err = a.resolveByToken(token, tokenType)
 			}
@@ -336,26 +329,6 @@ func extractToken(auth string) (string, error) {
 		return "", fmt.Errorf("Invalid auth")
 	}
 	return auths[len(auths)-1], nil
-}
-
-func getNamespaceName(path string) string {
-	if path == "" {
-		return ""
-	}
-
-	nsPath := "/namespaces/"
-	ind := strings.Index(path, nsPath)
-	if ind == -1 {
-		return ""
-	}
-	startInd := ind + len(nsPath)
-	ind = strings.Index(path[startInd:], "/")
-	if ind == -1 {
-		return path[startInd:]
-	}
-	endInd := startInd + ind
-
-	return path[startInd:endInd]
 }
 
 func cacheKey(plainKey string) string {

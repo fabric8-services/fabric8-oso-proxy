@@ -57,7 +57,7 @@ func TestRemoveUserID(t *testing.T) {
 		req.Header.Set(ImpersonateGroupHeader, impersonateGroup)
 		removeUserID(req)
 		actualUserID := req.Header.Get(UserIDHeader)
-		actualImpersonateGroup := req.Header.Get(ImpersonateGroupHeader)
+		actualImpersonateGroup := req.Header.Get(ImpersonateGroupHeader);
 		assert.Empty(t, actualUserID)
 		assert.Empty(t, actualImpersonateGroup)
 		assert.Equal(t, "http://f8osoproxy.com", req.URL.String())
@@ -85,24 +85,6 @@ func TestStripPathPrefix(t *testing.T) {
 		reqType := getRequestType(req)
 		reqType.stripPathPrefix(req)
 		assertRequestPath(t, req, table.expectedPath)
-	}
-}
-
-func TestGetNamespaceName(t *testing.T) {
-	tables := []struct {
-		reqPath    string
-		wantNsName string
-	}{
-		{"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets", "k8s-image-puller"},
-		{"/apis/apps/v1/namespaces/k8s-image-puller/anything/namespaces/second-namespace/daemonsets", "k8s-image-puller"},
-		{"", ""},
-		{"/apis/apps/v1/ns/k8s-image-puller/daemonsets", ""},
-		{"/apis/apps/v1/namespaces/", ""},
-		{"/apis/apps/v1/namespaces/k8s-image-puller", "k8s-image-puller"},
-	}
-	for _, table := range tables {
-		gotNsName := getNamespaceName(table.reqPath)
-		assert.Equal(t, table.wantNsName, gotNsName)
 	}
 }
 
