@@ -113,29 +113,29 @@ func NewOSIOAuth(tenantURL, authURL, srvAccID, srvAccSecret string) *OSIOAuth {
 	}
 }
 
-func cacheResolverByID(tenantLocator TenantLocator, tokenLocator TenantTokenLocator, srvAccTokenLocator SrvAccTokenLocator, secretLocator SecretLocator, token string, tokenType TokenType, userID string, namespaceName string) Resolver {
+func (a *OSIOAuth) cacheResolverByID(token string, tokenType TokenType, userID string, namespaceName string) Resolver {
 	return func() (interface{}, error) {
-		namespace, err := tenantLocator.GetTenantById(token, tokenType, userID)
+		namespace, err := a.RequestTenantLocation.GetTenantById(token, tokenType, userID)
 		if err != nil {
 			log.Errorf("Failed to locate tenant, %v", err)
 			return cacheData{}, err
 		}
-		osoProxySAToken, err := srvAccTokenLocator()
+		osoProxySAToken, err := a.RequestSrvAccToken()
 		if err != nil {
 			log.Errorf("Failed to locate service account token, %v", err)
 			return cacheData{}, err
 		}
-		clusterToken, err := tokenLocator.GetTokenWithSAToken(osoProxySAToken, namespace.ClusterURL)
+		clusterToken, err := a.RequestTenantToken.GetTokenWithSAToken(osoProxySAToken, namespace.ClusterURL)
 		if err != nil {
 			log.Errorf("Failed to locate cluster token, %v", err)
 			return cacheData{}, err
 		}
-		secretName, err := secretLocator.GetName(namespace.ClusterURL, clusterToken, namespaceName, namespace.Type)
+		secretName, err := a.RequestSecretLocation.GetName(namespace.ClusterURL, clusterToken, namespaceName, namespace.Type)
 		if err != nil {
 			log.Errorf("Failed to locate secret name, %v", err)
 			return cacheData{}, err
 		}
-		osoToken, err := secretLocator.GetSecret(namespace.ClusterURL, clusterToken, namespaceName, secretName)
+		osoToken, err := a.RequestSecretLocation.GetSecret(namespace.ClusterURL, clusterToken, namespaceName, secretName)
 		if err != nil {
 			log.Errorf("Failed to get secret, %v", err)
 			return cacheData{}, err
@@ -144,14 +144,14 @@ func cacheResolverByID(tenantLocator TenantLocator, tokenLocator TenantTokenLoca
 	}
 }
 
-func cacheResolverByToken(tenantLocator TenantLocator, tokenLocator TenantTokenLocator, token string, tokenType TokenType) Resolver {
+func (a *OSIOAuth) cacheResolverByToken(token string, tokenType TokenType) Resolver {
 	return func() (interface{}, error) {
-		namespace, err := tenantLocator.GetTenant(token, tokenType)
+		namespace, err := a.RequestTenantLocation.GetTenant(token, tokenType)
 		if err != nil {
 			log.Errorf("Failed to locate tenant, %v", err)
 			return cacheData{}, err
 		}
-		osoToken, err := tokenLocator.GetTokenWithUserToken(token, namespace.ClusterURL)
+		osoToken, err := a.RequestTenantToken.GetTokenWithUserToken(token, namespace.ClusterURL)
 		if err != nil {
 			log.Errorf("Failed to locate token, %v", err)
 			return cacheData{}, err
@@ -162,7 +162,7 @@ func cacheResolverByToken(tenantLocator TenantLocator, tokenLocator TenantTokenL
 
 func (a *OSIOAuth) resolveByToken(token string, tokenType TokenType) (cacheData, error) {
 	key := cacheKey(token)
-	val, err := a.cache.Get(key, cacheResolverByToken(a.RequestTenantLocation, a.RequestTenantToken, token, tokenType)).Get()
+	val, err := a.cache.Get(key, a.cacheResolverByToken(token, tokenType)).Get()
 
 	if data, ok := val.(cacheData); ok {
 		return data, err
@@ -173,7 +173,7 @@ func (a *OSIOAuth) resolveByToken(token string, tokenType TokenType) (cacheData,
 func (a *OSIOAuth) resolveByID(userID, token string, tokenType TokenType, namespaceName string) (cacheData, error) {
 	plainKey := fmt.Sprintf("%s_%s_%s", token, userID, namespaceName)
 	key := cacheKey(plainKey)
-	val, err := a.cache.Get(key, cacheResolverByID(a.RequestTenantLocation, a.RequestTenantToken, a.RequestSrvAccToken, a.RequestSecretLocation, token, tokenType, userID, namespaceName)).Get()
+	val, err := a.cache.Get(key, a.cacheResolverByID(token, tokenType, userID, namespaceName)).Get()
 
 	if data, ok := val.(cacheData); ok {
 		return data, err
