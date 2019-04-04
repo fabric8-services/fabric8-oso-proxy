@@ -130,12 +130,12 @@ func (a *OSIOAuth) cacheResolverByID(token string, tokenType TokenType, userID s
 			log.Errorf("Failed to locate cluster token, %v", err)
 			return cacheData{}, err
 		}
-		secretName, err := a.RequestSecretLocation.GetName(namespace.ClusterURL, clusterToken, namespaceName, namespace.Type)
+		secretName, err := a.RequestSecretLocation.GetName(namespace.ClusterURL, clusterToken, namespace.Name, namespace.Type)
 		if err != nil {
 			log.Errorf("Failed to locate secret name, %v", err)
 			return cacheData{}, err
 		}
-		osoToken, err := a.RequestSecretLocation.GetSecret(namespace.ClusterURL, clusterToken, namespaceName, secretName)
+		osoToken, err := a.RequestSecretLocation.GetSecret(namespace.ClusterURL, clusterToken, namespace.Name, secretName)
 		if err != nil {
 			log.Errorf("Failed to get secret, %v", err)
 			return cacheData{}, err
@@ -171,7 +171,7 @@ func (a *OSIOAuth) resolveByToken(token string, tokenType TokenType) (cacheData,
 }
 
 func (a *OSIOAuth) resolveByID(userID, token string, tokenType TokenType, namespaceName string) (cacheData, error) {
-	plainKey := fmt.Sprintf("%s_%s_%s", token, userID, namespaceName)
+	plainKey := fmt.Sprintf("%s_%s", token, userID)
 	key := cacheKey(plainKey)
 	val, err := a.cache.Get(key, a.cacheResolverByID(token, tokenType, userID, namespaceName)).Get()
 
@@ -203,6 +203,8 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 			// retrieve cache data
 			var cached cacheData
 			if tokenType != UserToken {
+				log.Infof("Got che call, host='%s' and path='%s'", r.Host, r.URL.Path)
+
 				userID := extractUserID(r)
 				if userID == "" {
 					log.Errorf("user identity is missing")
@@ -210,11 +212,11 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 					return
 				}
 				namespaceName := getNamespaceName(r.URL.Path)
-				log.Infof("namespaceName=%s", namespaceName)
+				log.Infof("namespaceName='%s'", namespaceName)
 				if namespaceName == "" {
-					log.Errorf("Invalid path, namespace name is missing in request path")
-					rw.WriteHeader(http.StatusBadRequest)
-					return
+					log.Warnf("Invalid path, namespace name is missing in request path, host='%s', path='%s'", r.Host, r.URL.Path)
+					// rw.WriteHeader(http.StatusBadRequest)
+					// return
 				}
 				cached, err = a.resolveByID(userID, token, tokenType, namespaceName)
 			} else {
