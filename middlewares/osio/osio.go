@@ -214,7 +214,7 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				namespaceName := getNamespaceName(r.URL.Path)
 				log.Infof("namespaceName='%s'", namespaceName)
 				if namespaceName == "" {
-					log.Warnf("Invalid path, namespace name is missing in request path, host='%s', path='%s'", r.Host, r.URL.Path)
+					log.Warnf("Invalid path, namespace name is missing in request path, host='%s', path='%s', userID='%s'", r.Host, r.URL.Path, userID)
 					// rw.WriteHeader(http.StatusBadRequest)
 					// return
 				}
