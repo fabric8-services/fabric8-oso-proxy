@@ -52,32 +52,32 @@ var cheCtx = testCheCtx{tables: []testCheData{
 		"127.0.0.1:9091",
 		"1000_che_secret",
 	},
-	{
-		"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets",
-		"22222222-1874-4de5-9c62-602634cb5cc2",
-		"127.0.0.1:9091",
-		"2000_che_secret",
-	},
-	{
-		"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets", // same test data to check cache
-		"22222222-1874-4de5-9c62-602634cb5cc2",
-		"127.0.0.1:9091",
-		"2000_che_secret",
-	},
-	{
-		// same ns=k8s-image-puller but different user=33333333-*
-		"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets",
-		"33333333-1874-4de5-9c62-602634cb5cc2",
-		"127.0.0.1:9092",
-		"3000_che_secret",
-	},
-	{
-		// user=22222222-* wants to access its own ns=osio-test-preview-che resuorces
-		"/apis/apps/v1/namespaces/osio-test-preview-che/pods",
-		"22222222-1874-4de5-9c62-602634cb5cc2",
-		"127.0.0.1:9091",
-		"4000_che_secret",
-	},
+	// {
+	// 	"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets",
+	// 	"22222222-1874-4de5-9c62-602634cb5cc2",
+	// 	"127.0.0.1:9091",
+	// 	"2000_che_secret",
+	// },
+	// {
+	// 	"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets", // same test data to check cache
+	// 	"22222222-1874-4de5-9c62-602634cb5cc2",
+	// 	"127.0.0.1:9091",
+	// 	"2000_che_secret",
+	// },
+	// {
+	// 	// same ns=k8s-image-puller but different user=33333333-*
+	// 	"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets",
+	// 	"33333333-1874-4de5-9c62-602634cb5cc2",
+	// 	"127.0.0.1:9092",
+	// 	"3000_che_secret",
+	// },
+	// {
+	// 	// user=22222222-* wants to access its own ns=osio-test-preview-che resuorces
+	// 	"/apis/apps/v1/namespaces/osio-test-preview-che/pods",
+	// 	"22222222-1874-4de5-9c62-602634cb5cc2",
+	// 	"127.0.0.1:9091",
+	// 	"4000_che_secret",
+	// },
 }}
 
 func TestChe(t *testing.T) {
@@ -113,11 +113,11 @@ func TestChe(t *testing.T) {
 		assert.NotNil(t, res)
 		assert.Equal(t, http.StatusOK, res.StatusCode)
 		errMsg := res.Header.Get("err")
-		assert.Empty(t, errMsg, errMsg)
+		assert.Empty(t, errMsg, "Test fail for, path=%s, id=%s", currReqPath, table.userID)
 
 		cluster.Close()
 	}
-	expecteTenantCalls := 4
+	expecteTenantCalls := 1
 	assert.Equal(t, expecteTenantCalls, cheCtx.tenantCallCount, "Number of time Tenant server called was incorrect, want:%d, got:%d", expecteTenantCalls, cheCtx.tenantCallCount)
 }
 

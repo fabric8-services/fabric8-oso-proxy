@@ -103,7 +103,28 @@ func TestGetNamespaceName(t *testing.T) {
 	}
 	for _, table := range tables {
 		gotNsName := getNamespaceName(table.reqPath)
-		assert.Equal(t, table.wantNsName, gotNsName)
+		assert.Equalf(t, table.wantNsName, gotNsName, "reqPath=%s", table.reqPath)
+	}
+}
+
+func TestGetNamespaceNameCheCalls(t *testing.T) {
+	tables := []struct {
+		reqPath    string
+		wantNsName string
+	}{
+		{"/api/v1/namespaces/nvirani-preview-che/pods/mkdir-workspacetqd6n4vlizkszspx", "nvirani-preview-che"},
+		{"/apis/route.openshift.io/v1/namespaces/nvirani-preview-che/routes", "nvirani-preview-che"},
+		{"/apis/apps/v1/namespaces/nvirani-preview-che/deployments", "nvirani-preview-che"},
+		{"/api/v1/namespaces/nvirani-preview-che/events", "nvirani-preview-che"},
+		{"/api/v1/namespaces/nvirani-preview-che/persistentvolumeclaims", "nvirani-preview-che"},
+		{"/api/v1/namespaces/nvirani-preview-che/pods", "nvirani-preview-che"},
+		{"/api/v1/namespaces/nvirani-preview-che/services", "nvirani-preview-che"},
+		{"/api/v1/namespaces/nvirani-preview-che/pods/workspacetqd6n4vlizkszspx.dockerimage-5c757cbbf8-28b5b", "nvirani-preview-che"},
+		{"/api/v1/namespaces/nvirani-preview-che/pods/workspacetqd6n4vlizkszspx.dockerimage-5c757cbbf8-28b5b/exec", "nvirani-preview-che"},
+	}
+	for _, table := range tables {
+		gotNsName := getNamespaceName(table.reqPath)
+		assert.Equalf(t, table.wantNsName, gotNsName, "reqPath=%s", table.reqPath)
 	}
 }
 
