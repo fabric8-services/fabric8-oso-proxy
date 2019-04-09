@@ -181,6 +181,16 @@ func (a *OSIOAuth) resolveByID(userID, token string, tokenType TokenType, namesp
 	return cacheData{}, err
 }
 
+func (a *OSIOAuth) resolveByIDWithoutCache(userID, token string, tokenType TokenType, namespaceName string) (cacheData, error) {
+	resolver := a.cacheResolverByID(token, tokenType, userID, namespaceName)
+	val, err := resolver()
+
+	if data, ok := val.(cacheData); ok {
+		return data, err
+	}
+	return cacheData{}, err
+}
+
 func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 
 	if a.RequestTenantLocation != nil {
@@ -214,11 +224,11 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				namespaceName := getNamespaceName(r.URL.Path)
 				log.Infof("namespaceName='%s'", namespaceName)
 				if namespaceName == "" {
-					log.Warnf("Invalid path, namespace name is missing in request path, host='%s', path='%s', userID='%s'", r.Host, r.URL.Path, userID)
-					// rw.WriteHeader(http.StatusBadRequest)
-					// return
+					log.Infof("Namespace name is missing in request path, host='%s', path='%s', userID='%s'", r.Host, r.URL.Path, userID)
+					cached, err = a.resolveByIDWithoutCache(userID, token, tokenType, namespaceName)
+				} else {
+					cached, err = a.resolveByID(userID, token, tokenType, namespaceName)
 				}
-				cached, err = a.resolveByID(userID, token, tokenType, namespaceName)
 			} else {
 				cached, err = a.resolveByToken(token, tokenType)
 			}
