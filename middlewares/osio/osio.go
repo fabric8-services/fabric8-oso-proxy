@@ -196,6 +196,7 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 	if a.RequestTenantLocation != nil {
 
 		if r.Method != "OPTIONS" {
+			log.Infof("Got request, host='%s' and path='%s'", r.Host, r.URL.Path)
 			// get token and token type
 			token, err := getToken(r)
 			if err != nil {
@@ -209,6 +210,7 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
+			log.Infof("tokenType='%s'", tokenType)
 
 			// retrieve cache data
 			var cached cacheData
