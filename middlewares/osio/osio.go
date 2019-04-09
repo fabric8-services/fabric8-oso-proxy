@@ -224,7 +224,7 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				namespaceName := getNamespaceName(r.URL.Path)
 				log.Infof("namespaceName='%s'", namespaceName)
 				if namespaceName == "" {
-					log.Infof("Namespace name is missing in request path, host='%s', path='%s', userID='%s'", r.Host, r.URL.Path, userID)
+					log.Infof("Cache disabled for this call as 'namespace name' is missing in request path, host='%s', path='%s', userID='%s'", r.Host, r.URL.Path, userID)
 					cached, err = a.resolveByIDWithoutCache(userID, token, tokenType, namespaceName)
 				} else {
 					cached, err = a.resolveByID(userID, token, tokenType, namespaceName)
