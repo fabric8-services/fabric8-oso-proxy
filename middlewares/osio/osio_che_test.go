@@ -52,6 +52,12 @@ var cheCtx = testCheCtx{tables: []testCheData{
 		"127.0.0.1:9091",
 		"1000_che_secret",
 	},
+	{
+		"/",
+		"11111111-4c6d-498c-97d0-cc7f2abcaca6",
+		"127.0.0.1:9091",
+		"1000_che_secret",
+	},
 	// {
 	// 	"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets",
 	// 	"22222222-1874-4de5-9c62-602634cb5cc2",
@@ -117,7 +123,7 @@ func TestChe(t *testing.T) {
 
 		cluster.Close()
 	}
-	expecteTenantCalls := 1
+	expecteTenantCalls := 2
 	assert.Equal(t, expecteTenantCalls, cheCtx.tenantCallCount, "Number of time Tenant server called was incorrect, want:%d, got:%d", expecteTenantCalls, cheCtx.tenantCallCount)
 }
 
