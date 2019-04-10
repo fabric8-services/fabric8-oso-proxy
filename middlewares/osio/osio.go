@@ -120,6 +120,10 @@ func (a *OSIOAuth) cacheResolverByID(token string, tokenType TokenType, userID s
 			log.Errorf("Failed to locate tenant, %v", err)
 			return cacheData{}, err
 		}
+		if namespaceName == "" {
+			namespaceName = namespace.Name
+		}
+
 		osoProxySAToken, err := a.RequestSrvAccToken()
 		if err != nil {
 			log.Errorf("Failed to locate service account token, %v", err)
@@ -130,12 +134,12 @@ func (a *OSIOAuth) cacheResolverByID(token string, tokenType TokenType, userID s
 			log.Errorf("Failed to locate cluster token, %v", err)
 			return cacheData{}, err
 		}
-		secretName, err := a.RequestSecretLocation.GetName(namespace.ClusterURL, clusterToken, namespace.Name, namespace.Type)
+		secretName, err := a.RequestSecretLocation.GetName(namespace.ClusterURL, clusterToken, namespaceName, namespace.Type)
 		if err != nil {
 			log.Errorf("Failed to locate secret name, %v", err)
 			return cacheData{}, err
 		}
-		osoToken, err := a.RequestSecretLocation.GetSecret(namespace.ClusterURL, clusterToken, namespace.Name, secretName)
+		osoToken, err := a.RequestSecretLocation.GetSecret(namespace.ClusterURL, clusterToken, namespaceName, secretName)
 		if err != nil {
 			log.Errorf("Failed to get secret, %v", err)
 			return cacheData{}, err
@@ -171,7 +175,7 @@ func (a *OSIOAuth) resolveByToken(token string, tokenType TokenType) (cacheData,
 }
 
 func (a *OSIOAuth) resolveByID(userID, token string, tokenType TokenType, namespaceName string) (cacheData, error) {
-	plainKey := fmt.Sprintf("%s_%s", token, userID)
+	plainKey := fmt.Sprintf("%s_%s_%s", token, userID, namespaceName)
 	key := cacheKey(plainKey)
 	val, err := a.cache.Get(key, a.cacheResolverByID(token, tokenType, userID, namespaceName)).Get()
 
@@ -196,7 +200,6 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 	if a.RequestTenantLocation != nil {
 
 		if r.Method != "OPTIONS" {
-			log.Infof("Got request, host='%s' and path='%s'", r.Host, r.URL.Path)
 			// get token and token type
 			token, err := getToken(r)
 			if err != nil {
@@ -210,13 +213,10 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 				rw.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			log.Infof("tokenType='%s'", tokenType)
 
 			// retrieve cache data
 			var cached cacheData
 			if tokenType != UserToken {
-				log.Infof("Got che call, host='%s' and path='%s'", r.Host, r.URL.Path)
-
 				userID := extractUserID(r)
 				if userID == "" {
 					log.Errorf("user identity is missing")
@@ -224,7 +224,6 @@ func (a *OSIOAuth) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.
 					return
 				}
 				namespaceName := getNamespaceName(r.URL.Path)
-				log.Infof("namespaceName='%s'", namespaceName)
 				if namespaceName == "" {
 					log.Infof("Cache disabled for this call as 'namespace name' is missing in request path, host='%s', path='%s', userID='%s'", r.Host, r.URL.Path, userID)
 					cached, err = a.resolveByIDWithoutCache(userID, token, tokenType, namespaceName)

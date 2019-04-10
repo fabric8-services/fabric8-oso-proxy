@@ -53,37 +53,44 @@ var cheCtx = testCheCtx{tables: []testCheData{
 		"1000_che_secret",
 	},
 	{
+		"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets",
+		"22222222-1874-4de5-9c62-602634cb5cc2",
+		"127.0.0.1:9091",
+		"2000_che_secret",
+	},
+	{
+		"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets", // same test data to check cache
+		"22222222-1874-4de5-9c62-602634cb5cc2",
+		"127.0.0.1:9091",
+		"2000_che_secret",
+	},
+	{
+		// same ns=k8s-image-puller but different user=33333333-*
+		"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets",
+		"33333333-1874-4de5-9c62-602634cb5cc2",
+		"127.0.0.1:9092",
+		"3000_che_secret",
+	},
+	{
+		// user=22222222-* wants to access its own ns=osio-test-preview-che resuorces
+		"/apis/apps/v1/namespaces/osio-test-preview-che/pods",
+		"22222222-1874-4de5-9c62-602634cb5cc2",
+		"127.0.0.1:9091",
+		"4000_che_secret",
+	},
+	// two calls without namespace and cache disabled for both calls
+	{
 		"/",
 		"11111111-4c6d-498c-97d0-cc7f2abcaca6",
 		"127.0.0.1:9091",
 		"1000_che_secret",
 	},
-	// {
-	// 	"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets",
-	// 	"22222222-1874-4de5-9c62-602634cb5cc2",
-	// 	"127.0.0.1:9091",
-	// 	"2000_che_secret",
-	// },
-	// {
-	// 	"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets", // same test data to check cache
-	// 	"22222222-1874-4de5-9c62-602634cb5cc2",
-	// 	"127.0.0.1:9091",
-	// 	"2000_che_secret",
-	// },
-	// {
-	// 	// same ns=k8s-image-puller but different user=33333333-*
-	// 	"/apis/apps/v1/namespaces/k8s-image-puller/daemonsets",
-	// 	"33333333-1874-4de5-9c62-602634cb5cc2",
-	// 	"127.0.0.1:9092",
-	// 	"3000_che_secret",
-	// },
-	// {
-	// 	// user=22222222-* wants to access its own ns=osio-test-preview-che resuorces
-	// 	"/apis/apps/v1/namespaces/osio-test-preview-che/pods",
-	// 	"22222222-1874-4de5-9c62-602634cb5cc2",
-	// 	"127.0.0.1:9091",
-	// 	"4000_che_secret",
-	// },
+	{
+		"/",
+		"11111111-4c6d-498c-97d0-cc7f2abcaca6",
+		"127.0.0.1:9091",
+		"1000_che_secret",
+	},
 }}
 
 func TestChe(t *testing.T) {
@@ -117,13 +124,13 @@ func TestChe(t *testing.T) {
 		req.Header.Set(UserIDHeader, table.userID)
 		res, _ := http.DefaultClient.Do(req)
 		assert.NotNil(t, res)
-		assert.Equal(t, http.StatusOK, res.StatusCode)
+		assert.Equal(t, http.StatusOK, res.StatusCode, "Test fail for, path=%s, id=%s", currReqPath, table.userID)
 		errMsg := res.Header.Get("err")
 		assert.Empty(t, errMsg, "Test fail for, path=%s, id=%s", currReqPath, table.userID)
 
 		cluster.Close()
 	}
-	expecteTenantCalls := 2
+	expecteTenantCalls := 6
 	assert.Equal(t, expecteTenantCalls, cheCtx.tenantCallCount, "Number of time Tenant server called was incorrect, want:%d, got:%d", expecteTenantCalls, cheCtx.tenantCallCount)
 }
 
