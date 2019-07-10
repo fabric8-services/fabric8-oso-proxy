@@ -50,7 +50,10 @@ func (r *ResolverPromise) Get() (interface{}, error) {
 
 	}(&wg, r.resolver)
 	wg.Wait()
-	r.resolved = true
+
+	if r.err == nil {
+		r.resolved = true
+	}
 
 	return r.value, r.err
 }
