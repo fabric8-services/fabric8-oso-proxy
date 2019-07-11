@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"errors"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,6 +20,16 @@ func singleValResolver(val interface{}) Resolver {
 func slowValResolver(duration time.Duration, val interface{}) Resolver {
 	return func() (interface{}, error) {
 		time.Sleep(duration)
+		return val, nil
+	}
+}
+
+func tempErrResolver(err error, callCounter *int, errCount int, val interface{}) Resolver {
+	return func() (interface{}, error) {
+		*callCounter = *callCounter + 1
+		if *callCounter <= errCount {
+			return nil, err
+		}
 		return val, nil
 	}
 }
@@ -61,4 +73,35 @@ func TestCacheReturnCachedDataMultiThread(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestCacheErrorNotCached(t *testing.T) {
+	c := Cache{}
+
+	wantVal := "test_value"
+	wantErr := errors.New("test_error")
+	callCnt := 0
+	errCnt := 2
+
+	p := c.Get("k1", tempErrResolver(wantErr, &callCnt, errCnt, wantVal))
+
+	gotVal, gotErr := p.Get()
+	assert.Nil(t, gotVal)
+	assert.Equal(t, wantErr, gotErr)
+	assert.Equal(t, 1, callCnt) // cnt changed as first attempt
+
+	gotVal, gotErr = p.Get()
+	assert.Nil(t, gotVal)
+	assert.Equal(t, wantErr, gotErr)
+	assert.Equal(t, 2, callCnt) // cnt changed as previous result was error
+
+	gotVal, gotErr = p.Get()
+	assert.Nil(t, gotErr)
+	assert.Equal(t, wantVal, gotVal)
+	assert.Equal(t, 3, callCnt) // cnt changed as previous result was error
+
+	gotVal, gotErr = p.Get()
+	assert.Nil(t, gotErr)
+	assert.Equal(t, wantVal, gotVal)
+	assert.Equal(t, 3, callCnt) // cnt NOT changed as previous result was value
 }
