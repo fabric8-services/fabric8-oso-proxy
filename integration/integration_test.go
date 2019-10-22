@@ -25,11 +25,6 @@ var host = flag.Bool("host", false, "run host integration tests")
 var osio = flag.Bool("osio", false, "run osio integration tests")
 
 func Test(t *testing.T) {
-	check.TestingT(t)
-}
-
-func init() {
-	flag.Parse()
 	if !*integration {
 		log.Info("Integration tests disabled.")
 		return
@@ -72,6 +67,8 @@ func init() {
 		check.Suite(&OSIOMiddlewareSuite{})
 		check.Suite(&OSIOProviderSuite{})
 	}
+
+	check.TestingT(t)
 }
 
 var traefikBinary = "../dist/traefik"
